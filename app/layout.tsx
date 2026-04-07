@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 
 import "./globals.css";
 import { ErrorBoundary } from "@/components/error-boundary";
+import { NeuralBackground } from "@/components/neural-bg";
 
 export const metadata: Metadata = {
   title: "Hermes Agent Benchmark",
@@ -20,6 +21,7 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
   return (
     <html lang="en">
       <body>
+        <NeuralBackground />
         <ErrorBoundary>{children}</ErrorBoundary>
       </body>
     </html>
