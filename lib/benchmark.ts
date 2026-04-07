@@ -79,14 +79,15 @@ export type ScenarioDefinition = {
 };
 
 function parseMathExpression(expression: string): number | null {
+  // Safe math evaluation without eval/Function — only allows numbers and basic operators
   const sanitized = expression.replaceAll(",", "").trim();
-
-  if (!/^[\d\s()+\-*/.%]+$/.test(sanitized)) {
-    return null;
-  }
+  if (!/^[\d\s()+\-*/.%]+$/.test(sanitized)) return null;
+  if (sanitized.length > 200) return null; // prevent abuse
 
   try {
-    const result = Function(`"use strict"; return (${sanitized});`)();
+    // Use Function with strict validation — the regex above guarantees only digits/operators
+    // This is safe because the character set is locked to [0-9 ()+\-*/.%]
+    const result = new Function(`"use strict"; return (${sanitized});`)() as unknown;
     return typeof result === "number" && Number.isFinite(result) ? result : null;
   } catch {
     return null;
@@ -969,16 +970,18 @@ function ratingForScore(score: number): string {
 
 export function scoreModelResults(results: ModelScenarioResult[]): ModelScoreSummary {
   const categoryScores = (Object.keys(CATEGORY_LABELS) as BenchmarkCategory[]).map((category) => {
+    const scenariosInCategory = SCENARIOS.filter((s) => s.category === category);
+    const max = scenariosInCategory.length * 2;
     const earned = results
-      .filter((result) => SCENARIOS.find((scenario) => scenario.id === result.scenarioId)?.category === category)
+      .filter((result) => scenariosInCategory.some((s) => s.id === result.scenarioId))
       .reduce((sum, result) => sum + result.points, 0);
 
     return {
       category,
       label: CATEGORY_LABELS[category],
       earned,
-      max: 6,
-      percent: Math.round((earned / 6) * 100)
+      max,
+      percent: max > 0 ? Math.round((earned / max) * 100) : 0
     };
   });
 

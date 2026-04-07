@@ -1,6 +1,6 @@
 {
   "name": "hermes-agent-benchmark",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "description": "Visual benchmark for testing LLMs with Hermes agent — scoring tool-call accuracy, latency, cost, and context window.",
   "license": "MIT",
   "scripts": {
@@ -13,16 +13,16 @@
   "dependencies": {
     "html2canvas-pro": "^2.0.2",
     "lucide-react": "^1.7.0",
-    "next": "latest",
-    "react": "latest",
-    "react-dom": "latest"
+    "next": "^16.2.1",
+    "react": "^19.2.4",
+    "react-dom": "^19.2.4"
   },
   "devDependencies": {
-    "@types/node": "latest",
-    "@types/react": "latest",
-    "@types/react-dom": "latest",
-    "eslint": "latest",
-    "eslint-config-next": "latest",
-    "typescript": "latest"
+    "@types/node": "^25.5.0",
+    "@types/react": "^19.2.14",
+    "@types/react-dom": "^19.2.3",
+    "eslint": "^9.39.4",
+    "eslint-config-next": "^16.2.1",
+    "typescript": "^5.9.3"
   }
 }

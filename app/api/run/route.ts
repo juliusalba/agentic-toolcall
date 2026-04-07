@@ -17,31 +17,18 @@ export async function GET(request: Request) {
 
   const params: GenerationParams = {};
   const temperature = searchParams.get("temperature");
-  if (temperature !== null) {
-    params.temperature = parseFloat(temperature);
-  }
+  if (temperature !== null) params.temperature = parseFloat(temperature);
   const topP = searchParams.get("top_p");
-  if (topP !== null) {
-    params.top_p = parseFloat(topP);
-  }
+  if (topP !== null) params.top_p = parseFloat(topP);
   const topK = searchParams.get("top_k");
-  if (topK !== null) {
-    params.top_k = parseInt(topK, 10);
-  }
+  if (topK !== null) params.top_k = parseInt(topK, 10);
   const minP = searchParams.get("min_p");
-  if (minP !== null) {
-    params.min_p = parseFloat(minP);
-  }
+  if (minP !== null) params.min_p = parseFloat(minP);
   const repetitionPenalty = searchParams.get("repetition_penalty");
-  if (repetitionPenalty !== null) {
-    params.repetition_penalty = parseFloat(repetitionPenalty);
-  }
+  if (repetitionPenalty !== null) params.repetition_penalty = parseFloat(repetitionPenalty);
   const toolsFormat = searchParams.get("tools_format");
-  if (toolsFormat === "lfm") {
-    params.tools_format = "lfm";
-  } else if (toolsFormat === "hermes") {
-    params.tools_format = "hermes";
-  }
+  if (toolsFormat === "lfm") params.tools_format = "lfm";
+  else if (toolsFormat === "hermes") params.tools_format = "hermes";
 
   let models = [] as ReturnType<typeof getModelConfigs>;
   let configError: string | null = null;
@@ -53,26 +40,30 @@ export async function GET(request: Request) {
     configError = error instanceof Error ? error.message : "Failed to read LLM_MODELS or LLM_MODELS_2.";
   }
 
+  // Use the request signal to detect client disconnection
+  const abortSignal = request.signal;
+  let cancelled = false;
+  abortSignal.addEventListener("abort", () => { cancelled = true; });
+
   const stream = new ReadableStream({
     async start(controller) {
       const emit = async (event: RunEvent) => {
-        controller.enqueue(toSseChunk(event));
+        if (cancelled) return;
+        try {
+          controller.enqueue(toSseChunk(event));
+        } catch {
+          cancelled = true; // stream closed
+        }
       };
 
       if (configError) {
-        await emit({
-          type: "run_error",
-          message: configError
-        });
+        await emit({ type: "run_error", message: configError });
         controller.close();
         return;
       }
 
       if (models.length === 0) {
-        await emit({
-          type: "run_error",
-          message: "No models are configured. Add entries to LLM_MODELS or LLM_MODELS_2 in .env before running the suite."
-        });
+        await emit({ type: "run_error", message: "No models configured. Add entries in Configure → Models." });
         controller.close();
         return;
       }
@@ -80,12 +71,11 @@ export async function GET(request: Request) {
       try {
         await runBenchmark(models, emit, requestedScenarioIds, params);
       } catch (error) {
-        await emit({
-          type: "run_error",
-          message: error instanceof Error ? error.message : "Unknown benchmark error."
-        });
+        if (!cancelled) {
+          await emit({ type: "run_error", message: error instanceof Error ? error.message : "Unknown benchmark error." });
+        }
       } finally {
-        controller.close();
+        try { controller.close(); } catch { /* already closed */ }
       }
     }
   });

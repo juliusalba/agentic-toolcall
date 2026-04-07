@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
-import { Play, SlidersHorizontal, X, Zap, Clock, DollarSign, Layers, Save, Camera, CheckSquare, Square, Cpu, Monitor } from "lucide-react";
+import { Play, SlidersHorizontal, X, Zap, Clock, DollarSign, Layers, Save, Camera, CheckSquare, Square, Cpu, Monitor, Download } from "lucide-react";
 import html2canvas from "html2canvas-pro";
 
 import { scoreModelResults, CATEGORY_LABELS, type BenchmarkCategory, type ModelScenarioResult, type ModelScoreSummary } from "@/lib/benchmark";
@@ -211,6 +211,7 @@ export function Dashboard({ primaryModels, secondaryModels, scenarios, configErr
   const [curSc, setCurSc] = useState(scenarios[0]?.id ?? "");
   const [expandedTc, setExpandedTc] = useState<string|null>(null);
   const [trace, setTrace] = useState<FailureDetails|null>(null);
+  const [errorMsg, setErrorMsg] = useState("");
   const [cfgOpen, setCfgOpen] = useState(false);
   const [sessionOpen, setSessionOpen] = useState(false);
   const [selectedModelIds, setSelectedModelIds] = useState<Set<string>>(new Set());
@@ -230,6 +231,24 @@ export function Dashboard({ primaryModels, secondaryModels, scenarios, configErr
   const ranked = useMemo(()=>dall.flatMap(m=>{const s=scores[m.id];return s?[{m,s}]:[]}).sort((a,b)=>b.s.finalScore!==a.s.finalScore?b.s.finalScore-a.s.finalScore:b.s.totalPoints-a.s.totalPoints),[dall,scores]);
 
   useEffect(()=>()=>{esRef.current?.close()},[]);
+
+  // Persist last run results to localStorage
+  function saveResults(s: Record<string, ModelScoreSummary>) {
+    try { localStorage.setItem("hermesbench.lastScores", JSON.stringify(s)); } catch { /* quota */ }
+  }
+  function loadResults(): Record<string, ModelScoreSummary> | null {
+    try { const r = localStorage.getItem("hermesbench.lastScores"); return r ? JSON.parse(r) : null; } catch { return null; }
+  }
+  function exportJson() {
+    const data = { timestamp: new Date().toISOString(), models: ranked.map(({m,s})=>({model:m.model,provider:m.provider,score:s.finalScore,points:`${s.totalPoints}/${s.maxPoints}`,avgLatencyMs:s.avgLatencyMs,avgTurns:s.avgTurns,categories:s.categoryScores})), scenarios: scenarios.map(s=>({id:s.id,title:s.title,category:s.category})) };
+    const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
+    const a = document.createElement("a"); a.href = URL.createObjectURL(blob);
+    a.download = `hermes-bench-${new Date().toISOString().slice(0,10)}.json`; a.click();
+    URL.revokeObjectURL(a.href);
+  }
+
+  // Restore last results on mount
+  useEffect(()=>{ const s = loadResults(); if (s && Object.keys(s).length > 0) setScores(s); },[]);
 
   function scanHardware() {
     const hw = detectHardware();
@@ -307,7 +326,7 @@ export function Dashboard({ primaryModels, secondaryModels, scenarios, configErr
 
     if(tid){setCells(p=>{const n=Object.fromEntries(runModels.map(m=>[m.id,{...(p[m.id]??{}),[tid]:{phase:"idle"} satisfies CellState}]));cellsRef.current=n;return n;});setCurSc(tid);}
     else{const n=buildCells(runModels,scenarios);cellsRef.current=n;setCells(n);setScores({});setCurSc(scenarios[0]?.id??"");}
-    setStatus("running");setTrace(null);
+    setStatus("running");setTrace(null);setErrorMsg("");
     const ps=new URLSearchParams({models:runModels.map(m=>m.id).join(",")});
     if(tid)ps.set("scenarios",tid);
     if(gp.temperature!==0)ps.set("temperature",String(gp.temperature));
@@ -317,8 +336,8 @@ export function Dashboard({ primaryModels, secondaryModels, scenarios, configErr
     if(gp.repetition_penalty!==undefined)ps.set("repetition_penalty",String(gp.repetition_penalty));
     if(gp.tools_format!=="default")ps.set("tools_format",gp.tools_format);
     const src=new EventSource(`/api/run?${ps}`);esRef.current=src;
-    src.onmessage=msg=>{const e=JSON.parse(msg.data) as RunEvent;switch(e.type){case"scenario_started":setCurSc(e.scenarioId);break;case"model_progress":upCell(e.modelId,e.scenarioId,p=>({...p,phase:"running"}));break;case"scenario_result":upCell(e.modelId,e.scenarioId,()=>({phase:"done",result:e.result}));break;case"run_finished":setStatus("done");setScores(e.scores);src.close();esRef.current=null;setTimeout(()=>captureAll(),500);break;case"run_error":setStatus("error");src.close();esRef.current=null;break;}};
-    src.onerror=()=>{if(esRef.current){setStatus("error");esRef.current.close();esRef.current=null;}};
+    src.onmessage=msg=>{try{const e=JSON.parse(msg.data) as RunEvent;switch(e.type){case"scenario_started":setCurSc(e.scenarioId);break;case"model_progress":upCell(e.modelId,e.scenarioId,p=>({...p,phase:"running"}));break;case"scenario_result":upCell(e.modelId,e.scenarioId,()=>({phase:"done",result:e.result}));break;case"run_finished":setStatus("done");setScores(e.scores);saveResults(e.scores);src.close();esRef.current=null;setTimeout(()=>captureAll(),500);break;case"run_error":setStatus("error");setErrorMsg(e.message);src.close();esRef.current=null;break;}}catch{/* malformed SSE event — ignore */}};
+    src.onerror=()=>{if(esRef.current){setStatus("error");setErrorMsg("Connection lost. Check the server.");esRef.current.close();esRef.current=null;}};
   }
 
   /* Start session with selected models */
@@ -358,12 +377,12 @@ export function Dashboard({ primaryModels, secondaryModels, scenarios, configErr
         <div className="topbar-left">
           <span className="topbar-brand">HERMES BENCH</span>
           <span className="topbar-sep"/>
-          <div className="topbar-status"><span className={`dot dot-${status}`}/>{status==="idle"?"Ready":status==="running"?curSc:status==="done"?"Done":"Error"}</div>
+          <div className="topbar-status"><span className={`dot dot-${status}`}/>{status==="idle"?"Ready":status==="running"?curSc:status==="done"?"Done":errorMsg||"Error"}</div>
           <span className="topbar-sep"/>
           <span className="topbar-status">{hasModels?`${allModels.length} models`:"No models"} · 15 TC · {gp.tools_format}</span>
         </div>
         <div className="topbar-right">
-          {status==="done"&&<button className="btn" onClick={captureAll}><Camera size={13}/>{screenshotMsg||"Screenshot"}</button>}
+          {status==="done"&&<><button className="btn" onClick={exportJson}><Download size={13}/>Export</button><button className="btn" onClick={captureAll}><Camera size={13}/>{screenshotMsg||"Screenshot"}</button></>}
           <button className="btn" onClick={()=>setCfgOpen(true)}><SlidersHorizontal size={13}/>Configure</button>
           <button className="btn btn-primary" onClick={()=>{if(hasModels){setSelectedModelIds(new Set(allModels.map(m=>m.id)));setSessionOpen(true);}}} disabled={!hasModels||status==="running"}><Play size={13}/>{status==="running"?"Running...":"New Session"}</button>
         </div>

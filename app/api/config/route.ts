@@ -6,6 +6,7 @@ export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 const ENV_PATH = join(process.cwd(), ".env");
+const SECRET_KEYS = new Set(["OPENROUTER_API_KEY"]);
 
 type EnvConfig = {
   OPENROUTER_API_KEY: string;
@@ -31,6 +32,17 @@ const CONFIG_KEYS: (keyof EnvConfig)[] = [
   "LLM_MODELS_2",
 ];
 
+function isLocalRequest(request: Request): boolean {
+  const host = new URL(request.url).hostname;
+  return host === "localhost" || host === "127.0.0.1" || host === "::1" || host === "0.0.0.0";
+}
+
+function maskSecret(value: string): string {
+  if (!value) return "";
+  if (value.length <= 8) return "****";
+  return value.slice(0, 4) + "..." + value.slice(-4);
+}
+
 function parseEnvFile(content: string): Record<string, string> {
   const result: Record<string, string> = {};
   for (const line of content.split("\n")) {
@@ -38,15 +50,13 @@ function parseEnvFile(content: string): Record<string, string> {
     if (!trimmed || trimmed.startsWith("#")) continue;
     const eqIndex = trimmed.indexOf("=");
     if (eqIndex === -1) continue;
-    const key = trimmed.slice(0, eqIndex).trim();
-    const value = trimmed.slice(eqIndex + 1).trim();
-    result[key] = value;
+    result[trimmed.slice(0, eqIndex).trim()] = trimmed.slice(eqIndex + 1).trim();
   }
   return result;
 }
 
 function buildEnvContent(config: Partial<EnvConfig>): string {
-  const lines: string[] = [
+  return [
     "# Hermes Agent Benchmark Configuration",
     "# Managed via the admin panel — edit here or in the UI.",
     "",
@@ -67,39 +77,52 @@ function buildEnvContent(config: Partial<EnvConfig>): string {
     `LLM_MODELS=${config.LLM_MODELS ?? ""}`,
     `LLM_MODELS_2=${config.LLM_MODELS_2 ?? ""}`,
     "",
-  ];
-  return lines.join("\n");
+  ].join("\n");
 }
 
-export async function GET() {
+export async function GET(request: Request) {
+  if (!isLocalRequest(request)) {
+    return NextResponse.json({ error: "Config API is only available on localhost." }, { status: 403 });
+  }
+
   try {
     const content = await readFile(ENV_PATH, "utf-8");
     const parsed = parseEnvFile(content);
 
+    // Never send raw secrets to the client — mask them
     const config: Record<string, string> = {};
     for (const key of CONFIG_KEYS) {
-      config[key] = parsed[key] ?? "";
+      const val = parsed[key] ?? "";
+      config[key] = SECRET_KEYS.has(key) ? maskSecret(val) : val;
     }
-    // Mask the API key for display
-    if (config.OPENROUTER_API_KEY && config.OPENROUTER_API_KEY.length > 8) {
-      config.OPENROUTER_API_KEY_MASKED =
-        config.OPENROUTER_API_KEY.slice(0, 4) + "..." + config.OPENROUTER_API_KEY.slice(-4);
-    } else {
-      config.OPENROUTER_API_KEY_MASKED = config.OPENROUTER_API_KEY ? "****" : "";
-    }
+    // Send a flag indicating whether the key is set (so UI knows)
+    config._HAS_OPENROUTER_KEY = parsed.OPENROUTER_API_KEY ? "true" : "false";
 
     return NextResponse.json(config);
   } catch {
     return NextResponse.json(
-      Object.fromEntries(CONFIG_KEYS.map((k) => [k, ""])),
+      Object.fromEntries([...CONFIG_KEYS.map((k) => [k, ""]), ["_HAS_OPENROUTER_KEY", "false"]]),
       { status: 200 }
     );
   }
 }
 
 export async function POST(request: Request) {
+  if (!isLocalRequest(request)) {
+    return NextResponse.json({ error: "Config API is only available on localhost." }, { status: 403 });
+  }
+
   try {
     const body = (await request.json()) as Partial<EnvConfig>;
+
+    // If the API key field is a masked value, preserve the existing key
+    if (body.OPENROUTER_API_KEY && (body.OPENROUTER_API_KEY.includes("...") || body.OPENROUTER_API_KEY === "****")) {
+      try {
+        const existing = parseEnvFile(await readFile(ENV_PATH, "utf-8"));
+        body.OPENROUTER_API_KEY = existing.OPENROUTER_API_KEY ?? "";
+      } catch { /* file doesn't exist yet */ }
+    }
+
     const content = buildEnvContent(body);
     await writeFile(ENV_PATH, content, "utf-8");
 
