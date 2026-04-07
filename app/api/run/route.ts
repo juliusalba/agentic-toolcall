@@ -1,5 +1,6 @@
 import { SCENARIOS } from "@/lib/benchmark";
 import { ENTERPRISE_SCENARIOS } from "@/lib/benchmark-enterprise";
+import { MEMORY_SCENARIOS } from "@/lib/benchmark-memory";
 import { getModelConfigs } from "@/lib/models";
 import { runBenchmark, type RunEvent } from "@/lib/orchestrator";
 import type { GenerationParams } from "@/lib/llm-client";
@@ -31,8 +32,8 @@ export async function GET(request: Request) {
   if (toolsFormat === "lfm") params.tools_format = "lfm";
   else if (toolsFormat === "hermes") params.tools_format = "hermes";
 
-  const suite = searchParams.get("suite") === "enterprise" ? "enterprise" : "basic";
-  const activeScenarios = suite === "enterprise" ? ENTERPRISE_SCENARIOS : SCENARIOS;
+  const suiteParam = searchParams.get("suite") ?? "general";
+  const activeScenarios = suiteParam === "business" ? ENTERPRISE_SCENARIOS : suiteParam === "memory" ? MEMORY_SCENARIOS : SCENARIOS;
 
   let models = [] as ReturnType<typeof getModelConfigs>;
   let configError: string | null = null;

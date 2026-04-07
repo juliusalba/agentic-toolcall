@@ -6,13 +6,15 @@ import html2canvas from "html2canvas-pro";
 
 import { scoreModelResults, CATEGORY_LABELS, type BenchmarkCategory, type ModelScenarioResult, type ModelScoreSummary } from "@/lib/benchmark";
 import { ENTERPRISE_CATEGORY_LABELS } from "@/lib/benchmark-enterprise";
+import { MEMORY_CATEGORY_LABELS } from "@/lib/benchmark-memory";
 import { detectHardware, checkAllModels, type HardwareInfo, type ModelCompatResult } from "@/lib/hardware";
 import type { PublicModelConfig } from "@/lib/models";
 import type { RunEvent } from "@/lib/orchestrator";
 
 /* ── Types ── */
 type ScenarioCard = { id: string; title: string; category: BenchmarkCategory; description: string; userMessage: string; successCase: string; failureCase: string };
-type DashboardProps = { primaryModels: PublicModelConfig[]; secondaryModels: PublicModelConfig[]; scenarios: ScenarioCard[]; enterpriseScenarios: ScenarioCard[]; configError?: string | null };
+type DashboardProps = { primaryModels: PublicModelConfig[]; secondaryModels: PublicModelConfig[]; scenarios: ScenarioCard[]; enterpriseScenarios: ScenarioCard[]; memoryScenarios: ScenarioCard[]; configError?: string | null };
+type SuiteId = "general" | "business" | "memory";
 type CellState = { phase: "idle" | "running" | "done"; result?: ModelScenarioResult };
 type FailureDetails = { modelName: string; scenarioId: string; summary: string; rawLog: string };
 type GenerationConfig = { temperature: number; top_p: number | undefined; top_k: number | undefined; min_p: number | undefined; repetition_penalty: number | undefined; tools_format: "default" | "lfm" | "hermes" };
@@ -54,8 +56,9 @@ const DEMO_RESULTS: Record<string, Record<string, "pass" | "partial" | "fail">> 
 };
 
 const CAT_DESC: Record<string, Record<BenchmarkCategory, string>> = {
-  basic: { A: "Simple daily lookups — weather, stocks, common knowledge", B: "Get parameters exactly right — units, dates, multi-value", C: "Chain multiple tools — contact→email, parallel, conditional", D: "Judgment calls — mental math, refusals, 4-step workflows", E: "When things break — retries, errors, data integrity" },
-  enterprise: { A: "REST APIs, pagination, MCP server invocation", B: "CRM search, contact enrichment, multi-channel outreach", C: "Sub-agent delegation, context management, 5-tool chains", D: "Skill creation, error-handling upgrades, cron scheduling", E: "Data pipelines, competitive intel, multi-source decisions" },
+  general: { A: "Simple daily lookups — weather, stocks, common knowledge", B: "Get parameters exactly right — units, dates, multi-value", C: "Chain multiple tools — contact→email, parallel, conditional", D: "Judgment calls — mental math, refusals, 4-step workflows", E: "When things break — retries, errors, data integrity" },
+  business: { A: "REST APIs, pagination, MCP server invocation", B: "CRM search, contact enrichment, multi-channel outreach", C: "Sub-agent delegation, context management, 5-tool chains", D: "Skill creation, error-handling upgrades, cron scheduling", E: "Data pipelines, competitive intel, multi-source decisions" },
+  memory: { A: "Fact recall, knowledge base lookup, session history", B: "Store important info, skip trivia, update profiles", C: "Multi-doc synthesis, targeted queries, source citations", D: "Admit unknowns, flag contradictions, trust KB over guesses", E: "Cross-reference sources, memory cleanup, full briefing prep" },
 };
 
 /* ── Helpers ── */
@@ -204,10 +207,10 @@ function TraceDialog({ details, onClose }: { details: FailureDetails|null; onClo
 
 /* ══════════ Dashboard ══════════ */
 
-export function Dashboard({ primaryModels, secondaryModels, scenarios, enterpriseScenarios, configError }: DashboardProps) {
+export function Dashboard({ primaryModels, secondaryModels, scenarios, enterpriseScenarios, memoryScenarios, configError }: DashboardProps) {
   const allModels = useMemo(() => [...primaryModels, ...secondaryModels], [primaryModels, secondaryModels]);
-  const [suite, setSuite] = useState<"basic"|"enterprise">("basic");
-  const activeScenarios = suite === "enterprise" ? enterpriseScenarios : scenarios;
+  const [suite, setSuite] = useState<SuiteId>("general");
+  const activeScenarios = suite === "business" ? enterpriseScenarios : suite === "memory" ? memoryScenarios : scenarios;
   const [cells, setCells] = useState(() => buildCells(allModels, scenarios));
   const cellsRef = useRef(cells);
   const [scores, setScores] = useState<Record<string, ModelScoreSummary>>({});
@@ -339,7 +342,7 @@ export function Dashboard({ primaryModels, secondaryModels, scenarios, enterpris
     if(gp.min_p!==undefined)ps.set("min_p",String(gp.min_p));
     if(gp.repetition_penalty!==undefined)ps.set("repetition_penalty",String(gp.repetition_penalty));
     if(gp.tools_format!=="default")ps.set("tools_format",gp.tools_format);
-    if(suite==="enterprise")ps.set("suite","enterprise");
+    if(suite!=="general")ps.set("suite",suite);
     const src=new EventSource(`/api/run?${ps}`);esRef.current=src;
     src.onmessage=msg=>{try{const e=JSON.parse(msg.data) as RunEvent;switch(e.type){case"scenario_started":setCurSc(e.scenarioId);break;case"model_progress":upCell(e.modelId,e.scenarioId,p=>({...p,phase:"running"}));break;case"scenario_result":upCell(e.modelId,e.scenarioId,()=>({phase:"done",result:e.result}));break;case"run_finished":setStatus("done");setScores(e.scores);saveResults(e.scores);src.close();esRef.current=null;setTimeout(()=>captureAll(),500);break;case"run_error":setStatus("error");setErrorMsg(e.message);src.close();esRef.current=null;break;}}catch{/* malformed SSE event — ignore */}};
     src.onerror=()=>{if(esRef.current){setStatus("error");setErrorMsg("Connection lost. Check the server.");esRef.current.close();esRef.current=null;}};
@@ -384,7 +387,7 @@ export function Dashboard({ primaryModels, secondaryModels, scenarios, enterpris
           <span className="topbar-sep"/>
           <div className="topbar-status"><span className={`dot dot-${status}`}/>{status==="idle"?"Ready":status==="running"?curSc:status==="done"?"Done":errorMsg||"Error"}</div>
           <span className="topbar-sep"/>
-          <span className="topbar-status">{hasModels?`${allModels.length} models`:"No models"} · {activeScenarios.length} {suite==="enterprise"?"EC":"TC"} · {gp.tools_format}</span>
+          <span className="topbar-status">{hasModels?`${allModels.length} models`:"No models"} · {activeScenarios.length} {suite==="business"?"EC":suite==="memory"?"MR":"TC"} · {suite} · {gp.tools_format}</span>
         </div>
         <div className="topbar-right">
           {status==="done"&&<><button className="btn" onClick={exportJson}><Download size={13}/>Export</button><button className="btn" onClick={captureAll}><Camera size={13}/>{screenshotMsg||"Screenshot"}</button></>}
@@ -403,8 +406,9 @@ export function Dashboard({ primaryModels, secondaryModels, scenarios, enterpris
           <button className={`view-tab ${view==="hardware"?"view-tab-active":""}`} onClick={()=>setView("hardware")}><Monitor size={12} style={{marginRight:4,verticalAlign:-1}}/>My Hardware</button>
         </div>
         <div className="suite-toggle">
-          <button className={`suite-btn ${suite==="basic"?"suite-btn-active":""}`} onClick={()=>setSuite("basic")}>Basic (15 TC)</button>
-          <button className={`suite-btn ${suite==="enterprise"?"suite-btn-active":""}`} onClick={()=>setSuite("enterprise")}>Enterprise (15 EC)</button>
+          <button className={`suite-btn ${suite==="general"?"suite-btn-active":""}`} onClick={()=>setSuite("general")}>General</button>
+          <button className={`suite-btn ${suite==="business"?"suite-btn-active":""}`} onClick={()=>setSuite("business")}>Business</button>
+          <button className={`suite-btn ${suite==="memory"?"suite-btn-active":""}`} onClick={()=>setSuite("memory")}>Memory</button>
         </div>
       </div>
 
@@ -449,7 +453,7 @@ export function Dashboard({ primaryModels, secondaryModels, scenarios, enterpris
           {/* TC accordion */}
           <div className="tc-section">
             <div className="tc-section-header"><span className="grid-title">Test Cases</span><span className="grid-title">15 scenarios · 5 categories</span></div>
-            {(Object.keys(suite==="enterprise"?ENTERPRISE_CATEGORY_LABELS:CATEGORY_LABELS) as BenchmarkCategory[]).map(cat=>{const catLabels=suite==="enterprise"?ENTERPRISE_CATEGORY_LABELS:CATEGORY_LABELS;return(
+            {(Object.keys(suite==="business"?ENTERPRISE_CATEGORY_LABELS:suite==="memory"?MEMORY_CATEGORY_LABELS:CATEGORY_LABELS) as BenchmarkCategory[]).map(cat=>{const catLabels=suite==="business"?ENTERPRISE_CATEGORY_LABELS:suite==="memory"?MEMORY_CATEGORY_LABELS:CATEGORY_LABELS;return(
               <div key={cat} className="tc-cat-group">
                 <div className="tc-cat-row">
                   <span className="tc-cat-tag">{cat}</span>
