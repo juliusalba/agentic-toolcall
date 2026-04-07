@@ -5,13 +5,14 @@ import { Play, SlidersHorizontal, X, Zap, Clock, DollarSign, Layers, Save, Camer
 import html2canvas from "html2canvas-pro";
 
 import { scoreModelResults, CATEGORY_LABELS, type BenchmarkCategory, type ModelScenarioResult, type ModelScoreSummary } from "@/lib/benchmark";
+import { ENTERPRISE_CATEGORY_LABELS } from "@/lib/benchmark-enterprise";
 import { detectHardware, checkAllModels, type HardwareInfo, type ModelCompatResult } from "@/lib/hardware";
 import type { PublicModelConfig } from "@/lib/models";
 import type { RunEvent } from "@/lib/orchestrator";
 
 /* ── Types ── */
 type ScenarioCard = { id: string; title: string; category: BenchmarkCategory; description: string; userMessage: string; successCase: string; failureCase: string };
-type DashboardProps = { primaryModels: PublicModelConfig[]; secondaryModels: PublicModelConfig[]; scenarios: ScenarioCard[]; configError?: string | null };
+type DashboardProps = { primaryModels: PublicModelConfig[]; secondaryModels: PublicModelConfig[]; scenarios: ScenarioCard[]; enterpriseScenarios: ScenarioCard[]; configError?: string | null };
 type CellState = { phase: "idle" | "running" | "done"; result?: ModelScenarioResult };
 type FailureDetails = { modelName: string; scenarioId: string; summary: string; rawLog: string };
 type GenerationConfig = { temperature: number; top_p: number | undefined; top_k: number | undefined; min_p: number | undefined; repetition_penalty: number | undefined; tools_format: "default" | "lfm" | "hermes" };
@@ -52,8 +53,9 @@ const DEMO_RESULTS: Record<string, Record<string, "pass" | "partial" | "fail">> 
   "Hermes 3 8B":      { "TC-01":"pass","TC-02":"pass","TC-03":"pass","TC-04":"pass","TC-05":"fail","TC-06":"fail","TC-07":"partial","TC-08":"partial","TC-09":"fail","TC-10":"pass","TC-11":"pass","TC-12":"fail","TC-13":"fail","TC-14":"partial","TC-15":"partial" },
 };
 
-const CAT_DESC: Record<BenchmarkCategory, string> = {
-  A: "Simple daily lookups — weather, stocks, common knowledge", B: "Get parameters exactly right — units, dates, multi-value", C: "Chain multiple tools — contact→email, parallel, conditional", D: "Judgment calls — mental math, refusals, 4-step workflows", E: "When things break — retries, errors, data integrity",
+const CAT_DESC: Record<string, Record<BenchmarkCategory, string>> = {
+  basic: { A: "Simple daily lookups — weather, stocks, common knowledge", B: "Get parameters exactly right — units, dates, multi-value", C: "Chain multiple tools — contact→email, parallel, conditional", D: "Judgment calls — mental math, refusals, 4-step workflows", E: "When things break — retries, errors, data integrity" },
+  enterprise: { A: "REST APIs, pagination, MCP server invocation", B: "CRM search, contact enrichment, multi-channel outreach", C: "Sub-agent delegation, context management, 5-tool chains", D: "Skill creation, error-handling upgrades, cron scheduling", E: "Data pipelines, competitive intel, multi-source decisions" },
 };
 
 /* ── Helpers ── */
@@ -202,8 +204,10 @@ function TraceDialog({ details, onClose }: { details: FailureDetails|null; onClo
 
 /* ══════════ Dashboard ══════════ */
 
-export function Dashboard({ primaryModels, secondaryModels, scenarios, configError }: DashboardProps) {
+export function Dashboard({ primaryModels, secondaryModels, scenarios, enterpriseScenarios, configError }: DashboardProps) {
   const allModels = useMemo(() => [...primaryModels, ...secondaryModels], [primaryModels, secondaryModels]);
+  const [suite, setSuite] = useState<"basic"|"enterprise">("basic");
+  const activeScenarios = suite === "enterprise" ? enterpriseScenarios : scenarios;
   const [cells, setCells] = useState(() => buildCells(allModels, scenarios));
   const cellsRef = useRef(cells);
   const [scores, setScores] = useState<Record<string, ModelScoreSummary>>({});
@@ -335,6 +339,7 @@ export function Dashboard({ primaryModels, secondaryModels, scenarios, configErr
     if(gp.min_p!==undefined)ps.set("min_p",String(gp.min_p));
     if(gp.repetition_penalty!==undefined)ps.set("repetition_penalty",String(gp.repetition_penalty));
     if(gp.tools_format!=="default")ps.set("tools_format",gp.tools_format);
+    if(suite==="enterprise")ps.set("suite","enterprise");
     const src=new EventSource(`/api/run?${ps}`);esRef.current=src;
     src.onmessage=msg=>{try{const e=JSON.parse(msg.data) as RunEvent;switch(e.type){case"scenario_started":setCurSc(e.scenarioId);break;case"model_progress":upCell(e.modelId,e.scenarioId,p=>({...p,phase:"running"}));break;case"scenario_result":upCell(e.modelId,e.scenarioId,()=>({phase:"done",result:e.result}));break;case"run_finished":setStatus("done");setScores(e.scores);saveResults(e.scores);src.close();esRef.current=null;setTimeout(()=>captureAll(),500);break;case"run_error":setStatus("error");setErrorMsg(e.message);src.close();esRef.current=null;break;}}catch{/* malformed SSE event — ignore */}};
     src.onerror=()=>{if(esRef.current){setStatus("error");setErrorMsg("Connection lost. Check the server.");esRef.current.close();esRef.current=null;}};
@@ -357,10 +362,10 @@ export function Dashboard({ primaryModels, secondaryModels, scenarios, configErr
   }
 
   /* Scenario lookup */
-  const scMap = useMemo(()=>Object.fromEntries(scenarios.map(s=>[s.id,s])),[scenarios]);
+  const scMap = useMemo(()=>Object.fromEntries(activeScenarios.map(s=>[s.id,s])),[activeScenarios]);
 
   /* Categorized scenarios */
-  const cats = useMemo(()=>{const g:Record<string,ScenarioCard[]>={};for(const s of scenarios)(g[s.category]??=[]).push(s);return g;},[scenarios]);
+  const cats = useMemo(()=>{const g:Record<string,ScenarioCard[]>={};for(const s of activeScenarios)(g[s.category]??=[]).push(s);return g;},[activeScenarios]);
 
   /* Leaderboard rows */
   const lbRows = useMemo(()=>{
@@ -379,7 +384,7 @@ export function Dashboard({ primaryModels, secondaryModels, scenarios, configErr
           <span className="topbar-sep"/>
           <div className="topbar-status"><span className={`dot dot-${status}`}/>{status==="idle"?"Ready":status==="running"?curSc:status==="done"?"Done":errorMsg||"Error"}</div>
           <span className="topbar-sep"/>
-          <span className="topbar-status">{hasModels?`${allModels.length} models`:"No models"} · 15 TC · {gp.tools_format}</span>
+          <span className="topbar-status">{hasModels?`${allModels.length} models`:"No models"} · {activeScenarios.length} {suite==="enterprise"?"EC":"TC"} · {gp.tools_format}</span>
         </div>
         <div className="topbar-right">
           {status==="done"&&<><button className="btn" onClick={exportJson}><Download size={13}/>Export</button><button className="btn" onClick={captureAll}><Camera size={13}/>{screenshotMsg||"Screenshot"}</button></>}
@@ -391,10 +396,16 @@ export function Dashboard({ primaryModels, secondaryModels, scenarios, configErr
       {configError && <div style={{padding:"8px 12px",background:"rgba(239,68,68,.1)",borderRadius:6,color:"#ef4444",fontSize:12,marginBottom:10}}>{configError}</div>}
 
       {/* ── View tabs ── */}
-      <div className="view-tabs">
-        <button className={`view-tab ${view==="grid"?"view-tab-active":""}`} onClick={()=>setView("grid")}>Model Test</button>
-        <button className={`view-tab ${view==="leaderboard"?"view-tab-active":""}`} onClick={()=>setView("leaderboard")}>Leaderboard</button>
-        <button className={`view-tab ${view==="hardware"?"view-tab-active":""}`} onClick={()=>setView("hardware")}><Monitor size={12} style={{marginRight:4,verticalAlign:-1}}/>My Hardware</button>
+      <div style={{display:"flex",alignItems:"center",gap:12,marginBottom:12,flexWrap:"wrap"}}>
+        <div className="view-tabs" style={{marginBottom:0}}>
+          <button className={`view-tab ${view==="grid"?"view-tab-active":""}`} onClick={()=>setView("grid")}>Model Test</button>
+          <button className={`view-tab ${view==="leaderboard"?"view-tab-active":""}`} onClick={()=>setView("leaderboard")}>Leaderboard</button>
+          <button className={`view-tab ${view==="hardware"?"view-tab-active":""}`} onClick={()=>setView("hardware")}><Monitor size={12} style={{marginRight:4,verticalAlign:-1}}/>My Hardware</button>
+        </div>
+        <div className="suite-toggle">
+          <button className={`suite-btn ${suite==="basic"?"suite-btn-active":""}`} onClick={()=>setSuite("basic")}>Basic (15 TC)</button>
+          <button className={`suite-btn ${suite==="enterprise"?"suite-btn-active":""}`} onClick={()=>setSuite("enterprise")}>Enterprise (15 EC)</button>
+        </div>
       </div>
 
       {/* ══ GRID VIEW ══ */}
@@ -438,12 +449,12 @@ export function Dashboard({ primaryModels, secondaryModels, scenarios, configErr
           {/* TC accordion */}
           <div className="tc-section">
             <div className="tc-section-header"><span className="grid-title">Test Cases</span><span className="grid-title">15 scenarios · 5 categories</span></div>
-            {(Object.keys(CATEGORY_LABELS) as BenchmarkCategory[]).map(cat=>(
+            {(Object.keys(suite==="enterprise"?ENTERPRISE_CATEGORY_LABELS:CATEGORY_LABELS) as BenchmarkCategory[]).map(cat=>{const catLabels=suite==="enterprise"?ENTERPRISE_CATEGORY_LABELS:CATEGORY_LABELS;return(
               <div key={cat} className="tc-cat-group">
                 <div className="tc-cat-row">
                   <span className="tc-cat-tag">{cat}</span>
-                  <span className="tc-cat-name">{CATEGORY_LABELS[cat]}</span>
-                  <span className="tc-cat-desc">{CAT_DESC[cat]}</span>
+                  <span className="tc-cat-name">{catLabels[cat]}</span>
+                  <span className="tc-cat-desc">{CAT_DESC[suite]?.[cat] ?? ""}</span>
                 </div>
                 {(cats[cat]??[]).map(sc=>{const open=expandedTc===sc.id;return(
                   <div key={sc.id} className="tc-row">
@@ -463,7 +474,7 @@ export function Dashboard({ primaryModels, secondaryModels, scenarios, configErr
                   </div>
                 );})}
               </div>
-            ))}
+            );})}
           </div>
         </div>
       )}

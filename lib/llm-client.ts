@@ -646,9 +646,10 @@ export async function callModel(model: ModelConfig, messages: ModelMessage[], pa
   };
 }
 
-export function createInitialMessages(userMessage: string): ModelMessage[] {
+export function createInitialMessages(userMessage: string, systemPromptOverride?: string): ModelMessage[] {
+  const sysPrompt = systemPromptOverride ?? SYSTEM_PROMPT;
   return [
-    { role: "system", content: `${SYSTEM_PROMPT}\n\nBenchmark context: today is 2026-03-20 (Friday). Use this date for any relative time request.` },
+    { role: "system", content: `${sysPrompt}\n\nBenchmark context: today is 2026-03-20 (Friday). Use this date for any relative time request.` },
     { role: "user", content: userMessage }
   ];
 }

@@ -50,13 +50,14 @@ type Emit = (event: RunEvent) => Promise<void> | void;
 const PROVIDER_ERROR_RETRY_PATTERN = /provider returned error/i;
 const MAX_PROVIDER_ERROR_ATTEMPTS = 3;
 
-function resolveScenarios(requestedScenarioIds?: string[]): ScenarioDefinition[] {
+function resolveScenarios(requestedScenarioIds?: string[], pool?: ScenarioDefinition[]): ScenarioDefinition[] {
+  const scenarioPool = pool ?? SCENARIOS;
   if (!requestedScenarioIds || requestedScenarioIds.length === 0) {
-    return SCENARIOS;
+    return scenarioPool;
   }
 
   const requested = new Set(requestedScenarioIds);
-  const selected = SCENARIOS.filter((scenario) => requested.has(scenario.id));
+  const selected = scenarioPool.filter((scenario) => requested.has(scenario.id));
 
   if (selected.length !== requested.size) {
     const found = new Set(selected.map((scenario) => scenario.id));
@@ -257,8 +258,8 @@ async function runScenarioForModel(
   };
 }
 
-export async function runBenchmark(models: ModelConfig[], emit: Emit, requestedScenarioIds?: string[], params?: GenerationParams): Promise<void> {
-  const scenarios = resolveScenarios(requestedScenarioIds);
+export async function runBenchmark(models: ModelConfig[], emit: Emit, requestedScenarioIds?: string[], params?: GenerationParams, scenarioPool?: ScenarioDefinition[]): Promise<void> {
+  const scenarios = resolveScenarios(requestedScenarioIds, scenarioPool);
   const resultsByModel: Record<string, ModelScenarioResult[]> = Object.fromEntries(
     models.map((model) => [model.id, [] as ModelScenarioResult[]])
   );

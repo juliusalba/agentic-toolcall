@@ -1,4 +1,5 @@
 import { SCENARIOS } from "@/lib/benchmark";
+import { ENTERPRISE_SCENARIOS } from "@/lib/benchmark-enterprise";
 import { getModelConfigs } from "@/lib/models";
 import { runBenchmark, type RunEvent } from "@/lib/orchestrator";
 import type { GenerationParams } from "@/lib/llm-client";
@@ -29,6 +30,9 @@ export async function GET(request: Request) {
   const toolsFormat = searchParams.get("tools_format");
   if (toolsFormat === "lfm") params.tools_format = "lfm";
   else if (toolsFormat === "hermes") params.tools_format = "hermes";
+
+  const suite = searchParams.get("suite") === "enterprise" ? "enterprise" : "basic";
+  const activeScenarios = suite === "enterprise" ? ENTERPRISE_SCENARIOS : SCENARIOS;
 
   let models = [] as ReturnType<typeof getModelConfigs>;
   let configError: string | null = null;
@@ -69,7 +73,7 @@ export async function GET(request: Request) {
       }
 
       try {
-        await runBenchmark(models, emit, requestedScenarioIds, params);
+        await runBenchmark(models, emit, requestedScenarioIds, params, activeScenarios);
       } catch (error) {
         if (!cancelled) {
           await emit({ type: "run_error", message: error instanceof Error ? error.message : "Unknown benchmark error." });
@@ -85,7 +89,7 @@ export async function GET(request: Request) {
       "Content-Type": "text/event-stream",
       "Cache-Control": "no-cache, no-transform",
       Connection: "keep-alive",
-      "X-Scenario-Count": String(SCENARIOS.length)
+      "X-Scenario-Count": String(activeScenarios.length)
     }
   });
 }
