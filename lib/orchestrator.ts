@@ -302,7 +302,7 @@ export async function runBenchmark(models: ModelConfig[], emit: Emit, requestedS
     }
 
     const scores = Object.fromEntries(
-      Object.entries(resultsByModel).map(([modelId, results]) => [modelId, scoreModelResults(results)])
+      Object.entries(resultsByModel).map(([modelId, results]) => [modelId, scoreModelResults(results, scenarios)])
     );
 
     await emit({

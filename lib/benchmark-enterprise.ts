@@ -3,7 +3,7 @@
 
 export { BENCHMARK_REFERENCE_DATE, BENCHMARK_REFERENCE_DAY } from "./benchmark";
 export type { ScenarioStatus, BenchmarkCategory, ToolCallRecord, ToolResultRecord, ScenarioState, ScenarioEvaluation, ScenarioDefinition, ModelScenarioResult, CategoryScore, ModelScoreSummary, ScenarioDisplayDetail } from "./benchmark";
-export { scoreModelResults } from "./benchmark";
+export { scoreModelResults } from "./benchmark"; // caller must pass scenarioPool param for correct scoring
 
 import type { ScenarioDefinition, ScenarioState, ToolCallRecord, BenchmarkCategory, ScenarioDisplayDetail } from "./benchmark";
 
@@ -347,8 +347,9 @@ export const ENTERPRISE_SCENARIOS: ScenarioDefinition[] = [
     evaluate(state) {
       const apiCalls = state.toolCalls.filter(c => c.name === "call_api");
       if (apiCalls.length >= 2) {
-        const secondUrl = asString(apiCalls[1]?.arguments.url) + JSON.stringify(apiCalls[1]?.arguments.body ?? {}) + JSON.stringify(apiCalls[1]?.arguments.headers ?? {});
-        if (secondUrl.includes("cur_page2")) {
+        // Check if the cursor appeared ANYWHERE in the second call's arguments
+        const secondCallStr = JSON.stringify(apiCalls[1]?.arguments ?? {}).toLowerCase();
+        if (secondCallStr.includes("cur_page2")) {
           return { status: "pass", points: 2, summary: "Followed pagination cursor across 2 pages." };
         }
         return { status: "partial", points: 1, summary: "Made multiple API calls but cursor handling unclear." };
@@ -375,7 +376,7 @@ export const ENTERPRISE_SCENARIOS: ScenarioDefinition[] = [
       const args = mcpCall.arguments.arguments as Record<string, unknown> ?? {};
       const hasRepo = includesText(JSON.stringify(args), "hermes-agent");
       const hasTitle = includesText(JSON.stringify(args), "fix token refresh bug");
-      if (server.includes("github") && (tool.includes("create_issue") || tool.includes("issue")) && hasRepo && hasTitle) {
+      if (server.includes("github") && (tool.includes("create_issue") || tool === "issue" || tool.includes("create-issue") || tool.includes("issues_create")) && hasRepo && hasTitle) {
         return { status: "pass", points: 2, summary: "Correct MCP invocation: github server, create_issue tool, right args." };
       }
       if (server.includes("github")) {
@@ -433,7 +434,7 @@ export const ENTERPRISE_SCENARIOS: ScenarioDefinition[] = [
     evaluate(state) {
       const enrichCall = firstCall(state, "enrich_contact");
       const outreachCall = firstCall(state, "send_outreach");
-      if (enrichCall && outreachCall && enrichCall.turn < outreachCall.turn) {
+      if (enrichCall && outreachCall && enrichCall.turn <= outreachCall.turn) {
         const body = asString(outreachCall.arguments.body).toLowerCase();
         const personalized = body.includes("acme") || body.includes("jane") || body.includes("vp") || body.includes("engineering");
         if (personalized && asString(outreachCall.arguments.to).includes("jane@acme.com")) {
@@ -615,7 +616,11 @@ export const ENTERPRISE_SCENARIOS: ScenarioDefinition[] = [
       if (!jobCall) return { status: "fail", points: 0, summary: "Did not create a scheduled job." };
       const cron = asString(jobCall.arguments.cron);
       // Monday at 8am should be something like "0 8 * * 1" or "0 8 * * MON"
-      const isMondayCron = (cron.includes("1") || cron.toLowerCase().includes("mon")) && cron.includes("8");
+      // Validate cron: should be like "0 8 * * 1" or "0 8 * * MON" — 5 fields, hour=8, day=1/MON
+      const parts = cron.trim().split(/\s+/);
+      const isMondayCron = parts.length === 5 &&
+        (parts[1] === "8" || parts[1] === "08") &&
+        (parts[4] === "1" || parts[4].toLowerCase() === "mon");
       const hasAction = asString(jobCall.arguments.action).length > 0 || asString(jobCall.arguments.name).length > 0;
       if (isMondayCron && hasAction) return { status: "pass", points: 2, summary: "Correct weekly Monday 8am cron with revenue report action." };
       if (hasAction) return { status: "partial", points: 1, summary: "Job created but cron expression was incorrect." };

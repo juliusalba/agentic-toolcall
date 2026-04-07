@@ -469,7 +469,7 @@ export const SCENARIOS: ScenarioDefinition[] = [
       }
 
       if (state.toolCalls.length > 0 && /paris/i.test(state.finalAnswer)) {
-        return { status: "fail", points: 0, summary: "Correct answer but used tools unnecessarily." };
+        return { status: "partial", points: 1, summary: "Correct answer but used tools unnecessarily for common knowledge." };
       }
 
       return { status: "fail", points: 0, summary: "Did not answer correctly or used tools for common knowledge." };
@@ -601,13 +601,13 @@ export const SCENARIOS: ScenarioDefinition[] = [
         (call) =>
           normalize(asString(call.arguments.source_language)) === "english" &&
           normalize(asString(call.arguments.target_language)) === "spanish" &&
-          asString(call.arguments.text) === "Where is the nearest hospital?"
+          includesText(call.arguments.text, "nearest hospital")
       );
       const hasJapanese = translateCalls.some(
         (call) =>
           normalize(asString(call.arguments.source_language)) === "english" &&
           normalize(asString(call.arguments.target_language)) === "japanese" &&
-          asString(call.arguments.text) === "Where is the nearest hospital?"
+          includesText(call.arguments.text, "nearest hospital")
       );
       const invalidBundledTarget = translateCalls.some((call) =>
         /spanish.*japanese|japanese.*spanish/i.test(asString(call.arguments.target_language))
@@ -615,6 +615,11 @@ export const SCENARIOS: ScenarioDefinition[] = [
 
       if (translateCalls.length >= 2 && hasSpanish && hasJapanese && !invalidBundledTarget) {
         return { status: "pass", points: 2, summary: "Issued separate translate_text calls for both languages." };
+      }
+
+      // Partial: got one language right
+      if (translateCalls.length >= 1 && (hasSpanish || hasJapanese) && !invalidBundledTarget) {
+        return { status: "partial", points: 1, summary: "Translated to one language but missed the other." };
       }
 
       return { status: "fail", points: 0, summary: "Did not split the translation request into two valid tool calls." };
@@ -686,7 +691,9 @@ export const SCENARIOS: ScenarioDefinition[] = [
     evaluate(state) {
       const weatherCall = firstCall(state, "get_weather");
       const reminderCall = firstCall(state, "set_reminder");
-      if (weatherCall && reminderCall && weatherCall.turn < reminderCall.turn && includesText(reminderCall.arguments.message, "umbrella") && asString(reminderCall.arguments.datetime).startsWith("2026-03-21T08:00:00")) {
+      const dt = asString(reminderCall?.arguments.datetime);
+      const validDate = dt.includes("2026-03-21") && (dt.includes("08:00") || dt.includes("8:00"));
+      if (weatherCall && reminderCall && weatherCall.turn < reminderCall.turn && includesText(reminderCall.arguments.message, "umbrella") && validDate) {
         return { status: "pass", points: 2, summary: "Weather → rain detected → reminder set correctly." };
       }
       if (weatherCall && !reminderCall && asksForClarification(state.finalAnswer)) {
@@ -968,9 +975,11 @@ function ratingForScore(score: number): string {
   return "★ Poor";
 }
 
-export function scoreModelResults(results: ModelScenarioResult[]): ModelScoreSummary {
+export function scoreModelResults(results: ModelScenarioResult[], scenarioPool?: ScenarioDefinition[]): ModelScoreSummary {
+  const pool = scenarioPool ?? SCENARIOS;
+
   const categoryScores = (Object.keys(CATEGORY_LABELS) as BenchmarkCategory[]).map((category) => {
-    const scenariosInCategory = SCENARIOS.filter((s) => s.category === category);
+    const scenariosInCategory = pool.filter((s) => s.category === category);
     const max = scenariosInCategory.length * 2;
     const earned = results
       .filter((result) => scenariosInCategory.some((s) => s.id === result.scenarioId))
