@@ -29,30 +29,56 @@ let _cfgSnap: GenerationConfig = DEFAULT_CFG;
 
 const DEMO_MODELS = ["GPT-4.1", "Claude Sonnet 4", "Gemma 3 27B", "Qwen 3 32B", "Hermes 3 70B", "GLM-4 32B", "MiniMax-M1", "Xiaomi MiMo 7B", "Hermes 3 8B", "DeepSeek V3"];
 const DEMO_PROVIDERS: Record<string, string> = { "GPT-4.1": "OpenRouter", "Claude Sonnet 4": "OpenRouter", "Gemma 3 27B": "OpenRouter", "Qwen 3 32B": "OpenRouter", "Hermes 3 70B": "OpenRouter", "GLM-4 32B": "OpenRouter", "MiniMax-M1": "OpenRouter", "Xiaomi MiMo 7B": "OpenRouter", "Hermes 3 8B": "Ollama", "DeepSeek V3": "OpenRouter" };
-const DEMO_META: Record<string, { score: number; latency: string; context: string; cost: string }> = {
-  "GPT-4.1":          { score: 93, latency: "1.2s", context: "1M",   cost: "$0.04" },
-  "Claude Sonnet 4":  { score: 90, latency: "1.6s", context: "200K", cost: "$0.05" },
-  "Gemma 3 27B":      { score: 85, latency: "1.8s", context: "128K", cost: "$0.01" },
-  "Qwen 3 32B":       { score: 83, latency: "1.5s", context: "128K", cost: "$0.01" },
-  "Hermes 3 70B":     { score: 80, latency: "2.4s", context: "128K", cost: "$0.02" },
-  "GLM-4 32B":        { score: 77, latency: "2.1s", context: "128K", cost: "$0.01" },
-  "MiniMax-M1":       { score: 73, latency: "2.8s", context: "1M",   cost: "$0.02" },
-  "Xiaomi MiMo 7B":   { score: 60, latency: "0.8s", context: "128K", cost: "<$0.01" },
-  "Hermes 3 8B":      { score: 57, latency: "0.9s", context: "128K", cost: "Free" },
-  "DeepSeek V3":      { score: 87, latency: "1.3s", context: "128K", cost: "$0.01" },
-};
-// Demo results: easy TCs mostly pass, complexity separates the models
-const DEMO_RESULTS: Record<string, Record<string, "pass" | "partial" | "fail">> = {
-  "GPT-4.1":          { "TC-01":"pass","TC-02":"pass","TC-03":"pass","TC-04":"pass","TC-05":"pass","TC-06":"pass","TC-07":"pass","TC-08":"pass","TC-09":"pass","TC-10":"pass","TC-11":"pass","TC-12":"pass","TC-13":"pass","TC-14":"partial","TC-15":"pass" },
-  "Claude Sonnet 4":  { "TC-01":"pass","TC-02":"pass","TC-03":"pass","TC-04":"pass","TC-05":"pass","TC-06":"pass","TC-07":"pass","TC-08":"pass","TC-09":"pass","TC-10":"pass","TC-11":"pass","TC-12":"pass","TC-13":"partial","TC-14":"pass","TC-15":"partial" },
-  "DeepSeek V3":      { "TC-01":"pass","TC-02":"pass","TC-03":"pass","TC-04":"pass","TC-05":"pass","TC-06":"pass","TC-07":"pass","TC-08":"pass","TC-09":"pass","TC-10":"pass","TC-11":"pass","TC-12":"partial","TC-13":"pass","TC-14":"partial","TC-15":"pass" },
-  "Gemma 3 27B":      { "TC-01":"pass","TC-02":"pass","TC-03":"pass","TC-04":"pass","TC-05":"pass","TC-06":"pass","TC-07":"pass","TC-08":"pass","TC-09":"partial","TC-10":"pass","TC-11":"pass","TC-12":"partial","TC-13":"partial","TC-14":"pass","TC-15":"partial" },
-  "Qwen 3 32B":       { "TC-01":"pass","TC-02":"pass","TC-03":"pass","TC-04":"pass","TC-05":"pass","TC-06":"partial","TC-07":"pass","TC-08":"pass","TC-09":"partial","TC-10":"pass","TC-11":"pass","TC-12":"partial","TC-13":"fail","TC-14":"partial","TC-15":"pass" },
-  "Hermes 3 70B":     { "TC-01":"pass","TC-02":"pass","TC-03":"pass","TC-04":"pass","TC-05":"pass","TC-06":"partial","TC-07":"pass","TC-08":"pass","TC-09":"partial","TC-10":"pass","TC-11":"pass","TC-12":"partial","TC-13":"fail","TC-14":"partial","TC-15":"pass" },
-  "GLM-4 32B":        { "TC-01":"pass","TC-02":"pass","TC-03":"pass","TC-04":"pass","TC-05":"partial","TC-06":"partial","TC-07":"pass","TC-08":"pass","TC-09":"fail","TC-10":"pass","TC-11":"pass","TC-12":"fail","TC-13":"fail","TC-14":"partial","TC-15":"pass" },
-  "MiniMax-M1":       { "TC-01":"pass","TC-02":"pass","TC-03":"pass","TC-04":"pass","TC-05":"partial","TC-06":"fail","TC-07":"partial","TC-08":"pass","TC-09":"fail","TC-10":"pass","TC-11":"pass","TC-12":"fail","TC-13":"fail","TC-14":"pass","TC-15":"partial" },
-  "Xiaomi MiMo 7B":   { "TC-01":"pass","TC-02":"pass","TC-03":"pass","TC-04":"pass","TC-05":"fail","TC-06":"fail","TC-07":"partial","TC-08":"pass","TC-09":"fail","TC-10":"pass","TC-11":"partial","TC-12":"fail","TC-13":"fail","TC-14":"partial","TC-15":"fail" },
-  "Hermes 3 8B":      { "TC-01":"pass","TC-02":"pass","TC-03":"pass","TC-04":"pass","TC-05":"fail","TC-06":"fail","TC-07":"partial","TC-08":"partial","TC-09":"fail","TC-10":"pass","TC-11":"pass","TC-12":"fail","TC-13":"fail","TC-14":"partial","TC-15":"partial" },
+const DEMO_LATENCY: Record<string, string> = { "GPT-4.1":"1.2s","Claude Sonnet 4":"1.6s","Gemma 3 27B":"1.8s","Qwen 3 32B":"1.5s","Hermes 3 70B":"2.4s","GLM-4 32B":"2.1s","MiniMax-M1":"2.8s","Xiaomi MiMo 7B":"0.8s","Hermes 3 8B":"0.9s","DeepSeek V3":"1.3s" };
+const DEMO_CTX: Record<string, string> = { "GPT-4.1":"1M","Claude Sonnet 4":"200K","Gemma 3 27B":"128K","Qwen 3 32B":"128K","Hermes 3 70B":"128K","GLM-4 32B":"128K","MiniMax-M1":"1M","Xiaomi MiMo 7B":"128K","Hermes 3 8B":"128K","DeepSeek V3":"128K" };
+const DEMO_COST: Record<string, string> = { "GPT-4.1":"$0.04","Claude Sonnet 4":"$0.05","Gemma 3 27B":"$0.01","Qwen 3 32B":"$0.01","Hermes 3 70B":"$0.02","GLM-4 32B":"$0.01","MiniMax-M1":"$0.02","Xiaomi MiMo 7B":"<$0.01","Hermes 3 8B":"Free","DeepSeek V3":"$0.01" };
+
+// Compute demo score from demo results grid
+function computeDemoScore(model: string, suiteId: SuiteId): number {
+  const grid = DEMO_RESULTS[suiteId]?.[model];
+  if (!grid) return 0;
+  const vals = Object.values(grid);
+  const pts = vals.reduce((s, v) => s + (v === "pass" ? 2 : v === "partial" ? 1 : 0), 0);
+  return Math.round((pts / (vals.length * 2)) * 100);
+}
+type DemoGrid = Record<string, Record<string, "pass" | "partial" | "fail">>;
+const DEMO_RESULTS: Record<SuiteId, DemoGrid> = {
+  general: {
+    "GPT-4.1":          { "TC-01":"pass","TC-02":"pass","TC-03":"pass","TC-04":"pass","TC-05":"pass","TC-06":"pass","TC-07":"pass","TC-08":"pass","TC-09":"pass","TC-10":"pass","TC-11":"pass","TC-12":"pass","TC-13":"pass","TC-14":"partial","TC-15":"pass" },
+    "Claude Sonnet 4":  { "TC-01":"pass","TC-02":"pass","TC-03":"pass","TC-04":"pass","TC-05":"pass","TC-06":"pass","TC-07":"pass","TC-08":"pass","TC-09":"pass","TC-10":"pass","TC-11":"pass","TC-12":"pass","TC-13":"partial","TC-14":"pass","TC-15":"partial" },
+    "DeepSeek V3":      { "TC-01":"pass","TC-02":"pass","TC-03":"pass","TC-04":"pass","TC-05":"pass","TC-06":"pass","TC-07":"pass","TC-08":"pass","TC-09":"pass","TC-10":"pass","TC-11":"pass","TC-12":"partial","TC-13":"pass","TC-14":"partial","TC-15":"pass" },
+    "Gemma 3 27B":      { "TC-01":"pass","TC-02":"pass","TC-03":"pass","TC-04":"pass","TC-05":"pass","TC-06":"pass","TC-07":"pass","TC-08":"pass","TC-09":"partial","TC-10":"pass","TC-11":"pass","TC-12":"partial","TC-13":"partial","TC-14":"pass","TC-15":"partial" },
+    "Qwen 3 32B":       { "TC-01":"pass","TC-02":"pass","TC-03":"pass","TC-04":"pass","TC-05":"pass","TC-06":"partial","TC-07":"pass","TC-08":"pass","TC-09":"partial","TC-10":"pass","TC-11":"pass","TC-12":"partial","TC-13":"fail","TC-14":"partial","TC-15":"pass" },
+    "Hermes 3 70B":     { "TC-01":"pass","TC-02":"pass","TC-03":"pass","TC-04":"pass","TC-05":"pass","TC-06":"partial","TC-07":"pass","TC-08":"pass","TC-09":"partial","TC-10":"pass","TC-11":"pass","TC-12":"partial","TC-13":"fail","TC-14":"partial","TC-15":"pass" },
+    "GLM-4 32B":        { "TC-01":"pass","TC-02":"pass","TC-03":"pass","TC-04":"pass","TC-05":"partial","TC-06":"partial","TC-07":"pass","TC-08":"pass","TC-09":"fail","TC-10":"pass","TC-11":"pass","TC-12":"fail","TC-13":"fail","TC-14":"partial","TC-15":"pass" },
+    "MiniMax-M1":       { "TC-01":"pass","TC-02":"pass","TC-03":"pass","TC-04":"pass","TC-05":"partial","TC-06":"fail","TC-07":"partial","TC-08":"pass","TC-09":"fail","TC-10":"pass","TC-11":"pass","TC-12":"fail","TC-13":"fail","TC-14":"pass","TC-15":"partial" },
+    "Xiaomi MiMo 7B":   { "TC-01":"pass","TC-02":"pass","TC-03":"pass","TC-04":"pass","TC-05":"fail","TC-06":"fail","TC-07":"partial","TC-08":"pass","TC-09":"fail","TC-10":"pass","TC-11":"partial","TC-12":"fail","TC-13":"fail","TC-14":"partial","TC-15":"fail" },
+    "Hermes 3 8B":      { "TC-01":"pass","TC-02":"pass","TC-03":"pass","TC-04":"pass","TC-05":"fail","TC-06":"fail","TC-07":"partial","TC-08":"partial","TC-09":"fail","TC-10":"pass","TC-11":"pass","TC-12":"fail","TC-13":"fail","TC-14":"partial","TC-15":"partial" },
+  },
+  business: {
+    "GPT-4.1":          { "EC-01":"pass","EC-02":"pass","EC-03":"pass","EC-04":"pass","EC-05":"pass","EC-06":"pass","EC-07":"pass","EC-08":"pass","EC-09":"pass","EC-10":"pass","EC-11":"pass","EC-12":"partial","EC-13":"pass","EC-14":"pass","EC-15":"partial" },
+    "Claude Sonnet 4":  { "EC-01":"pass","EC-02":"pass","EC-03":"pass","EC-04":"pass","EC-05":"pass","EC-06":"pass","EC-07":"pass","EC-08":"pass","EC-09":"partial","EC-10":"pass","EC-11":"partial","EC-12":"pass","EC-13":"pass","EC-14":"pass","EC-15":"pass" },
+    "DeepSeek V3":      { "EC-01":"pass","EC-02":"pass","EC-03":"partial","EC-04":"pass","EC-05":"pass","EC-06":"pass","EC-07":"pass","EC-08":"pass","EC-09":"pass","EC-10":"partial","EC-11":"pass","EC-12":"pass","EC-13":"pass","EC-14":"partial","EC-15":"pass" },
+    "Gemma 3 27B":      { "EC-01":"pass","EC-02":"partial","EC-03":"pass","EC-04":"pass","EC-05":"pass","EC-06":"partial","EC-07":"partial","EC-08":"pass","EC-09":"partial","EC-10":"pass","EC-11":"partial","EC-12":"partial","EC-13":"partial","EC-14":"partial","EC-15":"partial" },
+    "Qwen 3 32B":       { "EC-01":"pass","EC-02":"pass","EC-03":"partial","EC-04":"pass","EC-05":"partial","EC-06":"pass","EC-07":"pass","EC-08":"partial","EC-09":"partial","EC-10":"pass","EC-11":"pass","EC-12":"partial","EC-13":"fail","EC-14":"partial","EC-15":"partial" },
+    "Hermes 3 70B":     { "EC-01":"pass","EC-02":"partial","EC-03":"pass","EC-04":"pass","EC-05":"pass","EC-06":"partial","EC-07":"partial","EC-08":"pass","EC-09":"partial","EC-10":"partial","EC-11":"pass","EC-12":"fail","EC-13":"fail","EC-14":"partial","EC-15":"pass" },
+    "GLM-4 32B":        { "EC-01":"pass","EC-02":"partial","EC-03":"partial","EC-04":"partial","EC-05":"partial","EC-06":"fail","EC-07":"fail","EC-08":"pass","EC-09":"fail","EC-10":"pass","EC-11":"partial","EC-12":"fail","EC-13":"fail","EC-14":"fail","EC-15":"partial" },
+    "MiniMax-M1":       { "EC-01":"pass","EC-02":"fail","EC-03":"partial","EC-04":"pass","EC-05":"partial","EC-06":"fail","EC-07":"fail","EC-08":"partial","EC-09":"fail","EC-10":"partial","EC-11":"fail","EC-12":"fail","EC-13":"fail","EC-14":"partial","EC-15":"fail" },
+    "Xiaomi MiMo 7B":   { "EC-01":"partial","EC-02":"fail","EC-03":"fail","EC-04":"partial","EC-05":"fail","EC-06":"fail","EC-07":"fail","EC-08":"fail","EC-09":"fail","EC-10":"partial","EC-11":"fail","EC-12":"fail","EC-13":"fail","EC-14":"fail","EC-15":"fail" },
+    "Hermes 3 8B":      { "EC-01":"pass","EC-02":"fail","EC-03":"partial","EC-04":"partial","EC-05":"fail","EC-06":"fail","EC-07":"fail","EC-08":"partial","EC-09":"fail","EC-10":"pass","EC-11":"partial","EC-12":"fail","EC-13":"fail","EC-14":"fail","EC-15":"fail" },
+  },
+  memory: {
+    "GPT-4.1":          { "MR-01":"pass","MR-02":"pass","MR-03":"pass","MR-04":"pass","MR-05":"pass","MR-06":"pass","MR-07":"pass","MR-08":"pass","MR-09":"pass","MR-10":"pass","MR-11":"pass","MR-12":"pass","MR-13":"pass","MR-14":"pass","MR-15":"partial" },
+    "Claude Sonnet 4":  { "MR-01":"pass","MR-02":"pass","MR-03":"pass","MR-04":"pass","MR-05":"pass","MR-06":"pass","MR-07":"pass","MR-08":"pass","MR-09":"partial","MR-10":"pass","MR-11":"pass","MR-12":"pass","MR-13":"pass","MR-14":"partial","MR-15":"pass" },
+    "DeepSeek V3":      { "MR-01":"pass","MR-02":"pass","MR-03":"pass","MR-04":"pass","MR-05":"partial","MR-06":"pass","MR-07":"pass","MR-08":"pass","MR-09":"partial","MR-10":"pass","MR-11":"partial","MR-12":"pass","MR-13":"pass","MR-14":"pass","MR-15":"partial" },
+    "Gemma 3 27B":      { "MR-01":"pass","MR-02":"pass","MR-03":"pass","MR-04":"pass","MR-05":"pass","MR-06":"partial","MR-07":"pass","MR-08":"partial","MR-09":"partial","MR-10":"pass","MR-11":"partial","MR-12":"pass","MR-13":"partial","MR-14":"partial","MR-15":"partial" },
+    "Qwen 3 32B":       { "MR-01":"pass","MR-02":"pass","MR-03":"pass","MR-04":"partial","MR-05":"pass","MR-06":"pass","MR-07":"partial","MR-08":"pass","MR-09":"partial","MR-10":"pass","MR-11":"fail","MR-12":"partial","MR-13":"partial","MR-14":"partial","MR-15":"fail" },
+    "Hermes 3 70B":     { "MR-01":"pass","MR-02":"pass","MR-03":"partial","MR-04":"pass","MR-05":"partial","MR-06":"pass","MR-07":"pass","MR-08":"partial","MR-09":"fail","MR-10":"pass","MR-11":"fail","MR-12":"partial","MR-13":"partial","MR-14":"fail","MR-15":"partial" },
+    "GLM-4 32B":        { "MR-01":"pass","MR-02":"pass","MR-03":"partial","MR-04":"partial","MR-05":"fail","MR-06":"partial","MR-07":"partial","MR-08":"fail","MR-09":"fail","MR-10":"partial","MR-11":"fail","MR-12":"fail","MR-13":"fail","MR-14":"fail","MR-15":"fail" },
+    "MiniMax-M1":       { "MR-01":"pass","MR-02":"partial","MR-03":"partial","MR-04":"partial","MR-05":"fail","MR-06":"fail","MR-07":"fail","MR-08":"fail","MR-09":"fail","MR-10":"partial","MR-11":"fail","MR-12":"fail","MR-13":"fail","MR-14":"fail","MR-15":"fail" },
+    "Xiaomi MiMo 7B":   { "MR-01":"pass","MR-02":"partial","MR-03":"fail","MR-04":"fail","MR-05":"fail","MR-06":"fail","MR-07":"fail","MR-08":"fail","MR-09":"fail","MR-10":"fail","MR-11":"fail","MR-12":"fail","MR-13":"fail","MR-14":"fail","MR-15":"fail" },
+    "Hermes 3 8B":      { "MR-01":"pass","MR-02":"partial","MR-03":"fail","MR-04":"partial","MR-05":"fail","MR-06":"fail","MR-07":"fail","MR-08":"fail","MR-09":"fail","MR-10":"partial","MR-11":"fail","MR-12":"fail","MR-13":"fail","MR-14":"fail","MR-15":"fail" },
+  },
 };
 
 const CAT_DESC: Record<string, Record<BenchmarkCategory, string>> = {
@@ -373,7 +399,9 @@ export function Dashboard({ primaryModels, secondaryModels, scenarios, enterpris
   /* Leaderboard rows */
   const lbRows = useMemo(()=>{
     if(ranked.length>0) return ranked.map(({m,s},i)=>({rank:i+1,model:m.model,provider:m.provider,score:s.finalScore,latency:s.avgLatencyMs>0?fmtLat(s.avgLatencyMs):"—",context:m.metadata?.contextWindow?(m.metadata.contextWindow>=1000?`${Math.round(m.metadata.contextWindow/1024)}K`:`${m.metadata.contextWindow}`):"—",cost:m.metadata?.costPerMillionInput?((()=>{const c=(15*500*m.metadata.costPerMillionInput!/1e6)+(15*200*(m.metadata.costPerMillionOutput??m.metadata.costPerMillionInput!)/1e6);return c<.01?"<$0.01":`$${c.toFixed(2)}`;})()):"Local",badge:i===0?"gold":i===1?"silver":i===2?"bronze":"",demo:false}));
-    return DEMO_MODELS.map((m,i)=>({rank:i+1,model:m,provider:DEMO_PROVIDERS[m],score:DEMO_META[m].score,latency:DEMO_META[m].latency,context:DEMO_META[m].context,cost:DEMO_META[m].cost,badge:i===0?"gold":i===1?"silver":i===2?"bronze":"",demo:true}));
+    // Compute scores from demo grid and sort by score
+    const demoRows = DEMO_MODELS.map(m=>({model:m,provider:DEMO_PROVIDERS[m],score:computeDemoScore(m,suite),latency:DEMO_LATENCY[m]??"—",context:DEMO_CTX[m]??"—",cost:DEMO_COST[m]??"—"})).sort((a,b)=>b.score-a.score);
+    return demoRows.map((r,i)=>({rank:i+1,...r,badge:i===0?"gold":i===1?"silver":i===2?"bronze":"",demo:true}));
   },[ranked]);
 
   const isDemo = !hasModels && ranked.length === 0;
@@ -435,7 +463,7 @@ export function Dashboard({ primaryModels, secondaryModels, scenarios, enterpris
                   )) : DEMO_MODELS.map(name=>(
                     <tr key={name}>
                       <td><span className="grid-model">{name}</span></td>
-                      {scenarios.map(s=>{const st=DEMO_RESULTS[name]?.[s.id]??"fail";return <td key={s.id}><div className={`cell c-${st}`}><StatusIcon s={st}/></div></td>;})}
+                      {activeScenarios.map(s=>{const demoGrid=DEMO_RESULTS[suite];const st=demoGrid?.[name]?.[s.id]??"fail";return <td key={s.id}><div className={`cell c-${st}`}><StatusIcon s={st}/></div></td>;})}
                     </tr>
                   ))}
                 </tbody>
