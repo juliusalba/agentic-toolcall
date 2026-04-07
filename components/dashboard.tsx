@@ -7,7 +7,7 @@ import html2canvas from "html2canvas-pro";
 import { scoreModelResults, CATEGORY_LABELS, type BenchmarkCategory, type ModelScenarioResult, type ModelScoreSummary } from "@/lib/benchmark";
 import { ENTERPRISE_CATEGORY_LABELS } from "@/lib/benchmark-enterprise";
 import { MEMORY_CATEGORY_LABELS } from "@/lib/benchmark-memory";
-import { detectHardware, checkAllModels, type HardwareInfo, type ModelCompatResult } from "@/lib/hardware";
+import { detectHardware, detectHardwareFromServer, checkAllModels, type HardwareInfo, type ModelCompatResult } from "@/lib/hardware";
 import type { PublicModelConfig } from "@/lib/models";
 import type { RunEvent } from "@/lib/orchestrator";
 
@@ -283,8 +283,10 @@ export function Dashboard({ primaryModels, secondaryModels, scenarios, enterpris
   // Restore last results on mount
   useEffect(()=>{ const s = loadResults(); if (s && Object.keys(s).length > 0) setScores(s); },[]);
 
-  function scanHardware() {
-    const hw = detectHardware();
+  async function scanHardware() {
+    // Try server-side scan first (accurate), fall back to browser APIs (limited)
+    const serverHw = await detectHardwareFromServer();
+    const hw = serverHw ?? detectHardware();
     setHwInfo(hw);
     setHwModels(checkAllModels(hw));
   }
@@ -557,13 +559,17 @@ export function Dashboard({ primaryModels, secondaryModels, scenarios, enterpris
             </div>
             {hwInfo ? (
               <div className="hw-specs">
-                <div className="hw-spec-item"><span className="hw-spec-label">Platform</span><span className="hw-spec-value">{hwInfo.platform}{hwInfo.isAppleSilicon ? " (Apple Silicon)" : ""}</span></div>
-                <div className="hw-spec-item"><span className="hw-spec-label">RAM (estimated)</span><span className="hw-spec-value">{hwInfo.estimatedRam} GB{hwInfo.ram ? ` (browser reports: ${hwInfo.ram} GB)` : ""}</span></div>
+                {hwInfo.modelName && <div className="hw-spec-item"><span className="hw-spec-label">Machine</span><span className="hw-spec-value">{hwInfo.modelName}</span></div>}
+                <div className="hw-spec-item"><span className="hw-spec-label">Chip</span><span className="hw-spec-value">{hwInfo.chip || hwInfo.gpu || "Unknown"}</span></div>
+                <div className="hw-spec-item"><span className="hw-spec-label">RAM</span><span className="hw-spec-value">{hwInfo.estimatedRam} GB{hwInfo.unifiedMemory ? " (unified)" : ""}</span></div>
                 <div className="hw-spec-item"><span className="hw-spec-label">CPU Cores</span><span className="hw-spec-value">{hwInfo.cpuCores ?? "Unknown"}</span></div>
                 <div className="hw-spec-item"><span className="hw-spec-label">GPU</span><span className="hw-spec-value">{hwInfo.gpu ?? "Not detected"}</span></div>
-                {hwInfo.isAppleSilicon && <div className="hw-spec-note">Apple Silicon unified memory — RAM acts as VRAM for local inference.</div>}
+                {hwInfo.gpuVram && <div className="hw-spec-item"><span className="hw-spec-label">VRAM</span><span className="hw-spec-value">{hwInfo.gpuVram}</span></div>}
+                {hwInfo.osVersion && <div className="hw-spec-item"><span className="hw-spec-label">OS</span><span className="hw-spec-value">{hwInfo.platform} {hwInfo.osVersion}</span></div>}
+                <div className="hw-spec-item"><span className="hw-spec-label">Scan</span><span className="hw-spec-value" style={{color: hwInfo.scanSource === "server" ? "var(--green)" : "var(--amber)"}}>{hwInfo.scanSource === "server" ? "System scan (accurate)" : "Browser estimate (limited)"}</span></div>
+                {hwInfo.unifiedMemory && <div className="hw-spec-note">Apple Silicon unified memory — all {hwInfo.estimatedRam}GB available as VRAM for local inference.</div>}
               </div>
-            ) : <div className="hw-specs"><div className="hw-spec-note">Scanning...</div></div>}
+            ) : <div className="hw-specs"><div className="hw-spec-note">Scanning system hardware...</div></div>}
           </div>
 
           <div className="grid-wrap" style={{marginTop:12}}>

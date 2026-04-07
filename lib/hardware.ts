@@ -1,14 +1,19 @@
-// Hardware detection + model compatibility engine (client-side only)
+// Hardware detection + model compatibility engine
 
 export type HardwareInfo = {
-  ram: number | null;        // GB (from navigator.deviceMemory — capped at 8 on some browsers)
+  ram: number | null;        // GB (browser-reported, may be capped)
   cpuCores: number | null;   // logical cores
-  gpu: string | null;        // renderer string from WebGL
-  gpuVendor: string | null;  // vendor string
+  gpu: string | null;        // GPU name
+  gpuVendor: string | null;  // vendor
+  gpuVram: string | null;    // VRAM description
   platform: string;          // macOS, Windows, Linux, etc.
-  userAgent: string;
+  osVersion: string;
+  chip: string;              // CPU/chip name
+  modelName: string;         // machine model name
   isAppleSilicon: boolean;
-  estimatedRam: number;      // best guess in GB (fills in when deviceMemory is capped)
+  unifiedMemory: boolean;
+  estimatedRam: number;      // actual RAM in GB (from server scan)
+  scanSource: "server" | "browser"; // where the data came from
 };
 
 export type ModelRequirement = {
@@ -32,7 +37,38 @@ export type ModelCompatResult = ModelRequirement & {
   reason: string;
 };
 
-// ── Hardware Detection ──
+// ── Server-side Hardware Detection (accurate) ──
+
+export async function detectHardwareFromServer(): Promise<HardwareInfo | null> {
+  try {
+    const res = await fetch("/api/hardware");
+    if (!res.ok) return null;
+    const data = await res.json() as {
+      platform: string; os_version: string; cpu: string; cpu_cores: number;
+      ram_gb: number; gpu: string; gpu_vram: string; gpu_metal: string;
+      model_name: string; chip: string; is_apple_silicon: boolean; unified_memory: boolean;
+    };
+    return {
+      ram: data.ram_gb,
+      cpuCores: data.cpu_cores,
+      gpu: data.gpu,
+      gpuVendor: data.is_apple_silicon ? "Apple" : null,
+      gpuVram: data.gpu_vram,
+      platform: data.platform,
+      osVersion: data.os_version,
+      chip: data.chip,
+      modelName: data.model_name,
+      isAppleSilicon: data.is_apple_silicon,
+      unifiedMemory: data.unified_memory,
+      estimatedRam: data.ram_gb,
+      scanSource: "server",
+    };
+  } catch {
+    return null;
+  }
+}
+
+// ── Browser-side Fallback Detection (limited) ──
 
 export function detectHardware(): HardwareInfo {
   const nav = typeof navigator !== "undefined" ? navigator : null;
@@ -96,10 +132,15 @@ export function detectHardware(): HardwareInfo {
     cpuCores: cores,
     gpu,
     gpuVendor,
+    gpuVram: null,
     platform,
-    userAgent: ua,
+    osVersion: "",
+    chip: isAppleSilicon ? (gpu ?? "Apple Silicon") : "Unknown",
+    modelName: "",
     isAppleSilicon,
+    unifiedMemory: isAppleSilicon,
     estimatedRam,
+    scanSource: "browser",
   };
 }
 
