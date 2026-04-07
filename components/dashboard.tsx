@@ -452,20 +452,30 @@ export function Dashboard({ primaryModels, secondaryModels, scenarios, enterpris
               <table className="grid-table">
                 <thead><tr>
                   <th>Model</th>
-                  {scenarios.map(s=>{const info=scMap[s.id];return <th key={s.id} className="th-tip-wrap"><button className={`th-btn ${expandedTc===s.id?"th-active":""}`} onClick={e=>{if(e.shiftKey&&hasModels){run(s.id);}else setExpandedTc(expandedTc===s.id?null:s.id);}}>{s.id.replace("TC-","")}</button><div className="th-tip"><div className="th-tip-id">{s.id} · Cat {info?.category}</div><div className="th-tip-title">{info?.title}</div><div className="th-tip-desc">{info?.description}</div></div></th>;})}
+                  {activeScenarios.map(s=>{const info=scMap[s.id];return <th key={s.id} className="th-tip-wrap"><button className={`th-btn ${expandedTc===s.id?"th-active":""}`} onClick={e=>{if(e.shiftKey&&hasModels){run(s.id);}else setExpandedTc(expandedTc===s.id?null:s.id);}}>{s.id.replace(/^[A-Z]+-/,"")}</button><div className="th-tip"><div className="th-tip-id">{s.id} · Cat {info?.category}</div><div className="th-tip-title">{info?.title}</div><div className="th-tip-desc">{info?.description}</div></div></th>;})}
+                  <th className="th-score">Score</th>
                 </tr></thead>
                 <tbody>
-                  {hasModels ? dall.map(m=>(
+                  {hasModels ? dall.map(m=>{
+                    const modelCells = activeScenarios.map(s => cells[m.id]?.[s.id]);
+                    const pts = modelCells.reduce((sum, c) => sum + (c?.result?.points ?? 0), 0);
+                    const max = activeScenarios.length * 2;
+                    const pct = max > 0 ? Math.round((pts / max) * 100) : 0;
+                    return (
                     <tr key={m.id}>
                       <td><span className="grid-model">{m.model}</span></td>
-                      {scenarios.map(s=><td key={s.id}>{C(m,s)}</td>)}
-                    </tr>
-                  )) : DEMO_MODELS.map(name=>(
+                      {activeScenarios.map(s=><td key={s.id}>{C(m,s)}</td>)}
+                      <td className="td-score"><div className="grid-score-wrap"><div className="grid-score-bar" style={{width:`${pct}%`}}/><span className="grid-score-pct">{status==="done"?`${pct}%`:"—"}</span></div></td>
+                    </tr>);
+                  }) : DEMO_MODELS.map(name=>{
+                    const pct = computeDemoScore(name, suite);
+                    return (
                     <tr key={name}>
                       <td><span className="grid-model">{name}</span></td>
                       {activeScenarios.map(s=>{const demoGrid=DEMO_RESULTS[suite];const st=demoGrid?.[name]?.[s.id]??"fail";return <td key={s.id}><div className={`cell c-${st}`}><StatusIcon s={st}/></div></td>;})}
-                    </tr>
-                  ))}
+                      <td className="td-score"><div className="grid-score-wrap"><div className="grid-score-bar" style={{width:`${pct}%`}}/><span className="grid-score-pct">{pct}%</span></div></td>
+                    </tr>);
+                  })}
                 </tbody>
               </table>
             </div>
