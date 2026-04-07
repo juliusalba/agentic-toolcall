@@ -539,6 +539,81 @@ export function Dashboard({ primaryModels, secondaryModels, scenarios, configErr
         </>
       )}
 
+      {/* ══ HERMES SETUP GUIDE (inside hardware view) ══ */}
+      {view === "hardware" && (
+        <div className="grid-wrap" style={{marginTop:12}}>
+          <div className="grid-header"><span className="grid-title">Hermes Agent Setup Guide</span><a href="https://hermes-agent.nousresearch.com/docs/getting-started/quickstart" target="_blank" rel="noopener" className="btn" style={{padding:"3px 10px",fontSize:10,textDecoration:"none"}}>Full Docs</a></div>
+
+          <div className="hw-guide">
+            <div className="hw-guide-section">
+              <h3>Install Hermes Agent</h3>
+              <code className="hw-qs-code">curl -fsSL https://raw.githubusercontent.com/NousResearch/hermes-agent/main/scripts/install.sh | bash</code>
+              <span className="hw-qs-hint">Then reload your shell: <code>source ~/.zshrc</code> or <code>source ~/.bashrc</code></span>
+            </div>
+
+            <div className="hw-guide-section">
+              <h3>Add a Model Provider</h3>
+              <p className="hw-guide-desc">Run <code>hermes model</code> to pick interactively, or configure directly:</p>
+              <div className="hw-guide-grid">
+
+                <div className="hw-guide-card">
+                  <strong>Ollama (Local)</strong>
+                  <code className="hw-qs-code">{`ollama pull hermes3:8b\nollama serve`}</code>
+                  <span className="hw-guide-yaml">config.yaml:</span>
+                  <code className="hw-qs-code">{`model:\n  default: hermes3:8b\n  provider: custom\n  base_url: http://localhost:11434/v1\n  context_length: 32768`}</code>
+                  <span className="hw-guide-warn">Ollama defaults to 4K context. Set it explicitly or run:<br/><code>OLLAMA_CONTEXT_LENGTH=32768 ollama serve</code></span>
+                </div>
+
+                <div className="hw-guide-card">
+                  <strong>vLLM (GPU Server)</strong>
+                  <code className="hw-qs-code">{`vllm serve NousResearch/Hermes-3-Llama-3.1-8B \\\n  --port 8000 \\\n  --enable-auto-tool-choice \\\n  --tool-call-parser hermes \\\n  --max-model-len 32768`}</code>
+                  <span className="hw-guide-warn">Both <code>--enable-auto-tool-choice</code> and <code>--tool-call-parser hermes</code> are required for tool calling to work.</span>
+                </div>
+
+                <div className="hw-guide-card">
+                  <strong>llama.cpp (CPU/Metal)</strong>
+                  <code className="hw-qs-code">{`./llama-server \\\n  --jinja -fa \\\n  -c 32768 -ngl 99 \\\n  -m Hermes-3-8B-Q4_K_M.gguf \\\n  --port 8080 --host 0.0.0.0`}</code>
+                  <span className="hw-guide-warn">The <code>--jinja</code> flag is required. Without it, tool calls are silently ignored.</span>
+                </div>
+
+                <div className="hw-guide-card">
+                  <strong>OpenRouter (Cloud)</strong>
+                  <code className="hw-qs-code">{`# In ~/.hermes/.env:\nOPENROUTER_API_KEY=sk-or-...\n\n# Then:\nhermes chat --provider openrouter \\\n  --model nousresearch/hermes-3-llama-3.1-70b`}</code>
+                  <span className="hw-guide-hint">Works with 200+ models. Append <code>:nitro</code> for faster routing.</span>
+                </div>
+
+              </div>
+            </div>
+
+            <div className="hw-guide-section">
+              <h3>Common Issues & Fixes</h3>
+              <div className="hw-guide-issues">
+                <div className="hw-issue">
+                  <strong>Tool calls appear as plain text</strong>
+                  <span>Server isn't parsing tool calls. Fix: add <code>--jinja</code> (llama.cpp), <code>--enable-auto-tool-choice --tool-call-parser hermes</code> (vLLM), or <code>--tool-call-parser qwen</code> (SGLang). Ollama and LM Studio 0.3.6+ work out of the box.</span>
+                </div>
+                <div className="hw-issue">
+                  <strong>Model forgets context mid-conversation</strong>
+                  <span>Context window too small. Agent system prompt + tools use 4-8K tokens. Set at least <code>context_length: 32768</code> in config.yaml. Ollama users: set <code>OLLAMA_CONTEXT_LENGTH=32768</code>.</span>
+                </div>
+                <div className="hw-issue">
+                  <strong>Responses get cut off / truncated</strong>
+                  <span>SGLang defaults to 128 max output tokens — add <code>--default-max-tokens 4096</code>. Or enable context compression in Hermes config.</span>
+                </div>
+                <div className="hw-issue">
+                  <strong>Connection refused (WSL2 on Windows)</strong>
+                  <span>WSL2 uses a virtual network. Either enable mirrored networking in <code>.wslconfig</code>, or use your host IP instead of localhost. Servers must bind to <code>0.0.0.0</code>, not <code>127.0.0.1</code>.</span>
+                </div>
+                <div className="hw-issue">
+                  <strong>Which model should I use?</strong>
+                  <span>For tool calling: Hermes 3 8B (local, 6GB+ RAM), Hermes 3 70B (cloud or 48GB+), Qwen 3 32B (strong reasoning). For general: GPT-4.1 or Claude Sonnet 4 via OpenRouter.</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
       <SessionDialog open={sessionOpen} onClose={()=>setSessionOpen(false)} models={allModels} selected={selectedModelIds} setSelected={setSelectedModelIds} onStart={startSession}/>
       <AdminDialog open={cfgOpen} onClose={()=>setCfgOpen(false)} gp={gp} setGp={setGp}/>
       <TraceDialog details={trace} onClose={()=>setTrace(null)}/>
