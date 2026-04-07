@@ -536,12 +536,13 @@ export const ENTERPRISE_SCENARIOS: ScenarioDefinition[] = [
       const tools = new Set(state.toolCalls.map(c => c.name));
       const hasAll = ["query_database", "enrich_contact", "send_outreach", "create_task", "schedule_job"].every(t => tools.has(t));
       if (hasAll) {
-        // Check ordering: query before enrich, enrich before outreach
+        // Only enforce the data-dependent chain: query → enrich → outreach
+        // create_task and schedule_job are independent — can run in any order/parallel
         const qIdx = state.toolCalls.findIndex(c => c.name === "query_database");
         const eIdx = state.toolCalls.findIndex(c => c.name === "enrich_contact");
         const oIdx = state.toolCalls.findIndex(c => c.name === "send_outreach");
-        if (qIdx < eIdx && eIdx < oIdx) return { status: "pass", points: 2, summary: "All 5 tools used in correct dependency order." };
-        return { status: "partial", points: 1, summary: "All 5 tools used but ordering was suboptimal." };
+        if (qIdx < eIdx && eIdx <= oIdx) return { status: "pass", points: 2, summary: "All 5 tools used with correct data dependency (query→enrich→outreach)." };
+        return { status: "partial", points: 1, summary: "All 5 tools used but the query→enrich→outreach chain was misordered." };
       }
       if (tools.size >= 3) return { status: "partial", points: 1, summary: `${tools.size}/5 required tools used.` };
       return { status: "fail", points: 0, summary: "Did not coordinate enough tools for this workflow." };

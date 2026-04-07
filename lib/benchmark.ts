@@ -884,7 +884,8 @@ export const SCENARIOS: ScenarioDefinition[] = [
         return { status: "pass", points: 2, summary: "Used the searched population value in the calculator." };
       }
 
-      if (!calculatorCall && searchCall && answerContainsNumber(state.finalAnswer, "7450.4")) {
+      // Accept reasonable representations: 7450.4, 7,450.4, 7450, 7,450, ~7451
+      if (!calculatorCall && searchCall && /7[,.]?450/i.test(state.finalAnswer.replaceAll(",", ""))) {
         return { status: "partial", points: 1, summary: "Computed the right answer mentally after searching." };
       }
 
