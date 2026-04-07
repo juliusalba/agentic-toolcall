@@ -727,6 +727,128 @@ button, input, textarea, select { font: inherit; color: inherit; }
   margin-bottom: 2px;
 }
 
+/* ═══ Hardware scanner ═══ */
+
+.hw-specs {
+  padding: 12px 16px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 24px;
+}
+
+.hw-spec-item {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 140px;
+}
+
+.hw-spec-label {
+  font-family: var(--mono);
+  font-size: 10px;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--text-4);
+}
+
+.hw-spec-value {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.hw-spec-note {
+  width: 100%;
+  font-size: 11px;
+  color: var(--accent);
+  padding-top: 4px;
+  border-top: 1px solid var(--border);
+  margin-top: 4px;
+}
+
+.hw-dot {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  margin-right: 4px;
+  vertical-align: middle;
+}
+
+.hw-dot-local { background: var(--green); }
+.hw-dot-tight { background: var(--amber); }
+.hw-dot-cloud { background: var(--text-4); }
+
+.hw-badge {
+  font-family: var(--mono);
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  padding: 2px 8px;
+  border-radius: 3px;
+  white-space: nowrap;
+}
+
+.hw-badge-local { background: var(--green-dim); color: var(--green); }
+.hw-badge-tight { background: var(--amber-dim); color: var(--amber); }
+.hw-badge-cloud-only { background: rgba(255,255,255,0.04); color: var(--text-4); }
+
+.hw-ptag {
+  font-family: var(--mono);
+  font-size: 10px;
+  padding: 1px 6px;
+  border-radius: 3px;
+  background: var(--green-dim);
+  color: var(--green);
+  margin-right: 4px;
+}
+
+.hw-ptag-cloud {
+  background: rgba(255,255,255,0.04);
+  color: var(--text-4);
+}
+
+.hw-quickstart {
+  padding: 14px 16px;
+}
+
+.hw-qs-block {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: 12px;
+  color: var(--text-2);
+}
+
+.hw-qs-block strong {
+  color: var(--text);
+}
+
+.hw-qs-code {
+  font-family: var(--mono);
+  font-size: 12px;
+  padding: 8px 12px;
+  border-radius: 5px;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  color: var(--accent);
+}
+
+.hw-qs-hint {
+  font-size: 11px;
+  color: var(--text-3);
+}
+
+.hw-qs-hint code {
+  color: var(--accent);
+  background: var(--accent-dim);
+  padding: 1px 5px;
+  border-radius: 3px;
+  font-size: 11px;
+}
+
 /* ═══ Session selector ═══ */
 
 .session-empty {

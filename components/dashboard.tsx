@@ -1,10 +1,11 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
-import { Play, SlidersHorizontal, X, Zap, Clock, DollarSign, Layers, Save, Camera, CheckSquare, Square } from "lucide-react";
+import { Play, SlidersHorizontal, X, Zap, Clock, DollarSign, Layers, Save, Camera, CheckSquare, Square, Cpu, Monitor } from "lucide-react";
 import html2canvas from "html2canvas-pro";
 
 import { scoreModelResults, CATEGORY_LABELS, type BenchmarkCategory, type ModelScenarioResult, type ModelScoreSummary } from "@/lib/benchmark";
+import { detectHardware, checkAllModels, type HardwareInfo, type ModelCompatResult } from "@/lib/hardware";
 import type { PublicModelConfig } from "@/lib/models";
 import type { RunEvent } from "@/lib/orchestrator";
 
@@ -213,7 +214,9 @@ export function Dashboard({ primaryModels, secondaryModels, scenarios, configErr
   const [cfgOpen, setCfgOpen] = useState(false);
   const [sessionOpen, setSessionOpen] = useState(false);
   const [selectedModelIds, setSelectedModelIds] = useState<Set<string>>(new Set());
-  const [view, setView] = useState<"grid"|"leaderboard">("grid");
+  const [view, setView] = useState<"grid"|"leaderboard"|"hardware">("grid");
+  const [hwInfo, setHwInfo] = useState<HardwareInfo|null>(null);
+  const [hwModels, setHwModels] = useState<ModelCompatResult[]>([]);
   const [screenshotMsg, setScreenshotMsg] = useState("");
   const gridRef = useRef<HTMLDivElement>(null);
   const esRef = useRef<EventSource|null>(null);
@@ -227,6 +230,15 @@ export function Dashboard({ primaryModels, secondaryModels, scenarios, configErr
   const ranked = useMemo(()=>dall.flatMap(m=>{const s=scores[m.id];return s?[{m,s}]:[]}).sort((a,b)=>b.s.finalScore!==a.s.finalScore?b.s.finalScore-a.s.finalScore:b.s.totalPoints-a.s.totalPoints),[dall,scores]);
 
   useEffect(()=>()=>{esRef.current?.close()},[]);
+
+  function scanHardware() {
+    const hw = detectHardware();
+    setHwInfo(hw);
+    setHwModels(checkAllModels(hw));
+  }
+
+  // Auto-scan when switching to hardware tab
+  useEffect(()=>{ if (view === "hardware" && !hwInfo) scanHardware(); },[view, hwInfo]);
 
   const upCell = (mid:string,sid:string,fn:(p:CellState)=>CellState) => setCells(p=>{const n={...p,[mid]:{...p[mid],[sid]:fn(p[mid]?.[sid]??{phase:"idle"})}};cellsRef.current=n;return n;});
 
@@ -363,6 +375,7 @@ export function Dashboard({ primaryModels, secondaryModels, scenarios, configErr
       <div className="view-tabs">
         <button className={`view-tab ${view==="grid"?"view-tab-active":""}`} onClick={()=>setView("grid")}>Model Test</button>
         <button className={`view-tab ${view==="leaderboard"?"view-tab-active":""}`} onClick={()=>setView("leaderboard")}>Leaderboard</button>
+        <button className={`view-tab ${view==="hardware"?"view-tab-active":""}`} onClick={()=>setView("hardware")}><Monitor size={12} style={{marginRight:4,verticalAlign:-1}}/>My Hardware</button>
       </div>
 
       {/* ══ GRID VIEW ══ */}
@@ -460,6 +473,70 @@ export function Dashboard({ primaryModels, secondaryModels, scenarios, configErr
             ))}</tbody>
           </table>
         </div>
+      )}
+
+      {/* ══ HARDWARE VIEW ══ */}
+      {view === "hardware" && (
+        <>
+          <div className="grid-wrap">
+            <div className="grid-header">
+              <span className="grid-title">System Specs</span>
+              <button className="btn" onClick={scanHardware} style={{padding:"3px 10px",fontSize:11}}><Cpu size={11}/>Re-scan</button>
+            </div>
+            {hwInfo ? (
+              <div className="hw-specs">
+                <div className="hw-spec-item"><span className="hw-spec-label">Platform</span><span className="hw-spec-value">{hwInfo.platform}{hwInfo.isAppleSilicon ? " (Apple Silicon)" : ""}</span></div>
+                <div className="hw-spec-item"><span className="hw-spec-label">RAM (estimated)</span><span className="hw-spec-value">{hwInfo.estimatedRam} GB{hwInfo.ram ? ` (browser reports: ${hwInfo.ram} GB)` : ""}</span></div>
+                <div className="hw-spec-item"><span className="hw-spec-label">CPU Cores</span><span className="hw-spec-value">{hwInfo.cpuCores ?? "Unknown"}</span></div>
+                <div className="hw-spec-item"><span className="hw-spec-label">GPU</span><span className="hw-spec-value">{hwInfo.gpu ?? "Not detected"}</span></div>
+                {hwInfo.isAppleSilicon && <div className="hw-spec-note">Apple Silicon unified memory — RAM acts as VRAM for local inference.</div>}
+              </div>
+            ) : <div className="hw-specs"><div className="hw-spec-note">Scanning...</div></div>}
+          </div>
+
+          <div className="grid-wrap" style={{marginTop:12}}>
+            <div className="grid-header">
+              <span className="grid-title">Model Compatibility — {hwModels.filter(m=>m.compatibility==="local").length} local, {hwModels.filter(m=>m.compatibility==="tight").length} tight, {hwModels.filter(m=>m.compatibility==="cloud-only").length} cloud</span>
+              <div style={{display:"flex",gap:12,fontSize:10,fontFamily:"var(--mono)",color:"var(--text-4)"}}>
+                <span><span className="hw-dot hw-dot-local"/> Local</span>
+                <span><span className="hw-dot hw-dot-tight"/> Tight</span>
+                <span><span className="hw-dot hw-dot-cloud"/> Cloud</span>
+              </div>
+            </div>
+            <table className="lb-table">
+              <thead><tr><th style={{width:28}}></th><th>Model</th><th>Size</th><th>Min RAM</th><th>Quant</th><th>Run With</th><th>Status</th></tr></thead>
+              <tbody>{hwModels.map(m=>(
+                <tr key={m.id}>
+                  <td style={{textAlign:"center"}}><span className={`hw-dot hw-dot-${m.compatibility==="local"?"local":m.compatibility==="tight"?"tight":"cloud"}`}/></td>
+                  <td className="lb-model">{m.name}</td>
+                  <td>{m.params}</td>
+                  <td style={{fontFamily:"var(--mono)"}}>{m.minRamGb>0?`${m.minRamGb}GB`:"—"}</td>
+                  <td style={{fontFamily:"var(--mono)",fontSize:11}}>{m.quantization}</td>
+                  <td style={{fontSize:11}}>{m.ollamaTag&&<span className="hw-ptag">ollama</span>}{m.openrouterId&&<span className="hw-ptag hw-ptag-cloud">cloud</span>}</td>
+                  <td><span className={`hw-badge hw-badge-${m.compatibility}`}>{m.compatibility==="local"?"Run Locally":m.compatibility==="tight"?"Tight Fit":"Cloud Only"}</span></td>
+                </tr>
+              ))}</tbody>
+            </table>
+          </div>
+
+          <div className="grid-wrap" style={{marginTop:12}}>
+            <div className="grid-header"><span className="grid-title">Quick Start</span></div>
+            <div className="hw-quickstart">
+              {hwModels.filter(m=>m.compatibility==="local"&&m.ollamaTag).length>0?(
+                <div className="hw-qs-block">
+                  <strong>Recommended local model for your machine:</strong>
+                  <code className="hw-qs-code">{`ollama pull ${hwModels.find(m=>m.compatibility==="local"&&m.ollamaTag)?.ollamaTag}`}</code>
+                  <span className="hw-qs-hint">Then add <code>ollama:{hwModels.find(m=>m.compatibility==="local"&&m.ollamaTag)?.ollamaTag}</code> in Configure → Models</span>
+                </div>
+              ):(
+                <div className="hw-qs-block">
+                  <strong>Your hardware is best suited for cloud models.</strong>
+                  <span className="hw-qs-hint">Add your OpenRouter API key in Configure → API Keys, then use <code>openrouter:openai/gpt-4.1</code></span>
+                </div>
+              )}
+            </div>
+          </div>
+        </>
       )}
 
       <SessionDialog open={sessionOpen} onClose={()=>setSessionOpen(false)} models={allModels} selected={selectedModelIds} setSelected={setSelectedModelIds} onStart={startSession}/>
