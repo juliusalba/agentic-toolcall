@@ -177,6 +177,14 @@
       color: #fff;
     }
     .btn-primary:hover { background: #2563eb; text-decoration: none; }
+    .btn-glow {
+      box-shadow: 0 0 20px rgba(59,130,246,0.4), 0 0 60px rgba(59,130,246,0.15);
+      animation: glow-pulse 2s ease-in-out infinite;
+    }
+    @keyframes glow-pulse {
+      0%, 100% { box-shadow: 0 0 20px rgba(59,130,246,0.4), 0 0 60px rgba(59,130,246,0.15); }
+      50% { box-shadow: 0 0 30px rgba(59,130,246,0.6), 0 0 80px rgba(59,130,246,0.25); }
+    }
     .btn-secondary {
       background: transparent;
       color: var(--text-2);
@@ -452,8 +460,8 @@
       multi-step workflows, and memory retrieval — then check if your hardware can run them locally.
     </p>
     <div class="hero-actions">
-      <a href="https://github.com/juliusalba/agentic-toolcall" target="_blank" class="btn-primary">View on GitHub</a>
-      <a href="#features" class="btn-secondary">Learn More</a>
+      <a href="https://hermes-agent-benchmark.netlify.app" target="_blank" class="btn-primary btn-glow">Run Engine</a>
+      <a href="https://github.com/juliusalba/agentic-toolcall" target="_blank" class="btn-secondary">View on GitHub</a>
     </div>
   </section>
 
