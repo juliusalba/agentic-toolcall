@@ -1057,6 +1057,237 @@ button, input, textarea, select { font: inherit; color: inherit; }
   font-size: 10.5px;
 }
 
+/* ═══ Hardware Hero Verdict ═══ */
+
+.hw-hero {
+  padding: 24px 20px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  text-align: center;
+}
+
+.hw-hero-scanning {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: var(--text-3);
+  font-size: 14px;
+}
+
+@keyframes hw-spin { to { transform: rotate(360deg); } }
+.hw-spin { animation: hw-spin 1.5s linear infinite; color: var(--accent); }
+
+.hw-hero-machine {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.hw-hero-chip {
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--text);
+  letter-spacing: -0.02em;
+}
+
+.hw-hero-ram {
+  font-size: 12px;
+  color: var(--text-3);
+  font-family: var(--mono);
+}
+
+.hw-hero-verdict {
+  font-size: 22px;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  letter-spacing: -0.02em;
+}
+
+.hw-hero-verdict-yes { color: var(--green); }
+.hw-hero-verdict-maybe { color: var(--amber); }
+.hw-hero-verdict-cloud { color: var(--accent); }
+
+.hw-hero-icon { font-size: 24px; }
+
+.hw-hero-rec {
+  font-size: 13px;
+  color: var(--text-2);
+  max-width: 500px;
+  line-height: 1.5;
+}
+
+.hw-hero-counts {
+  display: flex;
+  gap: 16px;
+  margin-top: 4px;
+}
+
+.hw-hero-count {
+  font-family: var(--mono);
+  font-size: 11px;
+  font-weight: 600;
+  padding: 3px 10px;
+  border-radius: 4px;
+}
+
+.hw-hero-count-local { background: var(--green-dim); color: var(--green); }
+.hw-hero-count-tight { background: var(--amber-dim); color: var(--amber); }
+.hw-hero-count-cloud { background: rgba(255,255,255,0.04); color: var(--text-4); }
+
+/* ═══ Workload Selector ═══ */
+
+.hw-workload {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 8px;
+  padding: 12px 16px;
+}
+
+.hw-workload-btn {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  padding: 10px 12px;
+  border-radius: 6px;
+  border: 1px solid var(--border);
+  background: transparent;
+  cursor: pointer;
+  transition: all 0.15s var(--ease);
+}
+
+.hw-workload-btn:hover { border-color: var(--border-hover); background: var(--surface); }
+
+.hw-workload-active {
+  border-color: var(--accent) !important;
+  background: var(--accent-dim) !important;
+}
+
+.hw-workload-label {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.hw-workload-desc {
+  font-size: 10px;
+  color: var(--text-3);
+}
+
+/* ═══ Model Cards ═══ */
+
+.hw-cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 8px;
+  padding: 12px 16px;
+}
+
+.hw-card {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 12px 14px;
+  border-radius: 6px;
+  border: 1px solid var(--border);
+  background: rgba(255,255,255,0.01);
+  transition: border-color 0.15s var(--ease);
+}
+
+.hw-card:hover { border-color: var(--border-hover); }
+
+.hw-card-local { border-left: 3px solid var(--green); }
+.hw-card-tight { border-left: 3px solid var(--amber); }
+.hw-card-cloud-only { border-left: 3px solid var(--text-4); opacity: 0.75; }
+
+.hw-card-top {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.hw-card-name {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text);
+  flex: 1;
+}
+
+.hw-card-size {
+  font-family: var(--mono);
+  font-size: 10px;
+  color: var(--text-4);
+  background: rgba(255,255,255,0.04);
+  padding: 1px 6px;
+  border-radius: 3px;
+}
+
+.hw-card-reason {
+  font-size: 11px;
+  color: var(--text-3);
+  line-height: 1.4;
+}
+
+.hw-card-hermes {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.hw-card-hermes-why {
+  font-size: 10px;
+  color: var(--text-4);
+  line-height: 1.35;
+}
+
+.hw-card-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+.hw-card-cmd {
+  font-family: var(--mono);
+  font-size: 10.5px;
+  padding: 5px 8px;
+  border-radius: 4px;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  color: var(--green);
+}
+
+/* ═══ Hermes Compatibility Badges ═══ */
+
+.hw-hermes-badge {
+  font-family: var(--mono);
+  font-size: 10px;
+  font-weight: 600;
+  padding: 2px 8px;
+  border-radius: 3px;
+  white-space: nowrap;
+  display: inline-block;
+}
+
+.hw-hermes-excellent { background: var(--green-dim); color: var(--green); }
+.hw-hermes-good { background: var(--accent-dim); color: var(--accent); }
+.hw-hermes-partial { background: var(--amber-dim); color: var(--amber); }
+.hw-hermes-untested { background: rgba(255,255,255,0.04); color: var(--text-4); }
+.hw-hermes-incompatible { background: var(--red-dim); color: var(--red); }
+
+.hw-ptag-hermes {
+  background: var(--green-dim);
+  color: var(--green);
+}
+
+.hw-ptag-feat {
+  background: var(--accent-dim);
+  color: var(--accent);
+}
+
 /* ═══ Session selector ═══ */
 
 .session-empty {

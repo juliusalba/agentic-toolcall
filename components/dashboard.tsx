@@ -7,7 +7,7 @@ import html2canvas from "html2canvas-pro";
 import { scoreModelResults, CATEGORY_LABELS, type BenchmarkCategory, type ModelScenarioResult, type ModelScoreSummary } from "@/lib/benchmark";
 import { ENTERPRISE_CATEGORY_LABELS } from "@/lib/benchmark-enterprise";
 import { MEMORY_CATEGORY_LABELS } from "@/lib/benchmark-memory";
-import { detectHardware, detectHardwareFromServer, checkAllModels, type HardwareInfo, type ModelCompatResult } from "@/lib/hardware";
+import { detectHardware, detectHardwareFromServer, checkAllModels, getBestRecommendation, WORKLOAD_LABELS, HERMES_RATING_LABELS, type HardwareInfo, type ModelCompatResult, type WorkloadProfile, type HermesCompatRating } from "@/lib/hardware";
 import type { PublicModelConfig } from "@/lib/models";
 import type { RunEvent } from "@/lib/orchestrator";
 
@@ -251,6 +251,8 @@ export function Dashboard({ primaryModels, secondaryModels, scenarios, enterpris
   const [view, setView] = useState<"grid"|"leaderboard"|"hardware">("grid");
   const [hwInfo, setHwInfo] = useState<HardwareInfo|null>(null);
   const [hwModels, setHwModels] = useState<ModelCompatResult[]>([]);
+  const [hwProfile, setHwProfile] = useState<WorkloadProfile>("normal");
+  const [hwShowTech, setHwShowTech] = useState(false);
   const [screenshotMsg, setScreenshotMsg] = useState("");
   const gridRef = useRef<HTMLDivElement>(null);
   const esRef = useRef<EventSource|null>(null);
@@ -283,12 +285,17 @@ export function Dashboard({ primaryModels, secondaryModels, scenarios, enterpris
   // Restore last results on mount
   useEffect(()=>{ const s = loadResults(); if (s && Object.keys(s).length > 0) setScores(s); },[]);
 
-  async function scanHardware() {
-    // Try server-side scan first (accurate), fall back to browser APIs (limited)
+  async function scanHardware(profile?: WorkloadProfile) {
+    const p = profile ?? hwProfile;
     const serverHw = await detectHardwareFromServer();
     const hw = serverHw ?? detectHardware();
     setHwInfo(hw);
-    setHwModels(checkAllModels(hw));
+    setHwModels(checkAllModels(hw, p));
+  }
+
+  function changeProfile(p: WorkloadProfile) {
+    setHwProfile(p);
+    if (hwInfo) setHwModels(checkAllModels(hwInfo, p));
   }
 
   // Auto-scan when switching to hardware tab
@@ -549,147 +556,215 @@ export function Dashboard({ primaryModels, secondaryModels, scenarios, enterpris
         </div>
       )}
 
-      {/* ══ HARDWARE VIEW ══ */}
+      {/* ══ HARDWARE VIEW — Simplified "Can I Run This?" ══ */}
       {view === "hardware" && (
         <>
+          {/* ── Hero Verdict ── */}
           <div className="grid-wrap">
-            <div className="grid-header">
-              <span className="grid-title">System Specs</span>
-              <button className="btn" onClick={scanHardware} style={{padding:"3px 10px",fontSize:11}}><Cpu size={11}/>Re-scan</button>
+            <div className="hw-hero">
+              {!hwInfo ? (
+                <div className="hw-hero-scanning">
+                  <Cpu size={20} className="hw-spin"/>
+                  <span>Scanning your hardware...</span>
+                </div>
+              ) : (() => {
+                const rec = getBestRecommendation(hwModels);
+                const localCount = hwModels.filter(m=>m.compatibility==="local").length;
+                const tightCount = hwModels.filter(m=>m.compatibility==="tight").length;
+                return (
+                  <>
+                    <div className="hw-hero-machine">
+                      <span className="hw-hero-chip">{hwInfo.chip || hwInfo.gpu || "Your Machine"}</span>
+                      <span className="hw-hero-ram">{hwInfo.estimatedRam}GB {hwInfo.unifiedMemory ? "unified " : ""}memory</span>
+                    </div>
+                    <div className={`hw-hero-verdict hw-hero-verdict-${localCount > 0 ? "yes" : tightCount > 0 ? "maybe" : "cloud"}`}>
+                      {localCount > 0 ? (
+                        <><span className="hw-hero-icon">&#10003;</span> Yes, you can run AI locally</>
+                      ) : tightCount > 0 ? (
+                        <><span className="hw-hero-icon">&#9711;</span> It&apos;ll be tight, but possible</>
+                      ) : (
+                        <><span className="hw-hero-icon">&#9729;</span> Cloud is your best option</>
+                      )}
+                    </div>
+                    {rec && <div className="hw-hero-rec">{rec.verdict}</div>}
+                    <div className="hw-hero-counts">
+                      <span className="hw-hero-count hw-hero-count-local">{localCount} run locally</span>
+                      <span className="hw-hero-count hw-hero-count-tight">{tightCount} tight fit</span>
+                      <span className="hw-hero-count hw-hero-count-cloud">{hwModels.filter(m=>m.compatibility==="cloud-only").length} cloud only</span>
+                    </div>
+                  </>
+                );
+              })()}
             </div>
-            {hwInfo ? (
-              <div className="hw-specs">
-                {hwInfo.modelName && <div className="hw-spec-item"><span className="hw-spec-label">Machine</span><span className="hw-spec-value">{hwInfo.modelName}</span></div>}
-                <div className="hw-spec-item"><span className="hw-spec-label">Chip</span><span className="hw-spec-value">{hwInfo.chip || hwInfo.gpu || "Unknown"}</span></div>
-                <div className="hw-spec-item"><span className="hw-spec-label">RAM</span><span className="hw-spec-value">{hwInfo.estimatedRam} GB{hwInfo.unifiedMemory ? " (unified)" : ""}</span></div>
-                <div className="hw-spec-item"><span className="hw-spec-label">CPU Cores</span><span className="hw-spec-value">{hwInfo.cpuCores ?? "Unknown"}</span></div>
-                <div className="hw-spec-item"><span className="hw-spec-label">GPU</span><span className="hw-spec-value">{hwInfo.gpu ?? "Not detected"}</span></div>
-                {hwInfo.gpuVram && <div className="hw-spec-item"><span className="hw-spec-label">VRAM</span><span className="hw-spec-value">{hwInfo.gpuVram}</span></div>}
-                {hwInfo.osVersion && <div className="hw-spec-item"><span className="hw-spec-label">OS</span><span className="hw-spec-value">{hwInfo.platform} {hwInfo.osVersion}</span></div>}
-                <div className="hw-spec-item"><span className="hw-spec-label">Scan</span><span className="hw-spec-value" style={{color: hwInfo.scanSource === "server" ? "var(--green)" : "var(--amber)"}}>{hwInfo.scanSource === "server" ? "System scan (accurate)" : "Browser estimate (limited)"}</span></div>
-                {hwInfo.unifiedMemory && <div className="hw-spec-note">Apple Silicon unified memory — all {hwInfo.estimatedRam}GB available as VRAM for local inference.</div>}
-              </div>
-            ) : <div className="hw-specs"><div className="hw-spec-note">Scanning system hardware...</div></div>}
           </div>
 
+          {/* ── Workload Selector ── */}
           <div className="grid-wrap" style={{marginTop:12}}>
             <div className="grid-header">
-              <span className="grid-title">Model Compatibility — {hwModels.filter(m=>m.compatibility==="local").length} local, {hwModels.filter(m=>m.compatibility==="tight").length} tight, {hwModels.filter(m=>m.compatibility==="cloud-only").length} cloud</span>
-              <div style={{display:"flex",gap:12,fontSize:10,fontFamily:"var(--mono)",color:"var(--text-4)"}}>
-                <span><span className="hw-dot hw-dot-local"/> Local</span>
-                <span><span className="hw-dot hw-dot-tight"/> Tight</span>
-                <span><span className="hw-dot hw-dot-cloud"/> Cloud</span>
-              </div>
+              <span className="grid-title">What else runs on your machine?</span>
+              <button className="btn" onClick={()=>scanHardware()} style={{padding:"3px 10px",fontSize:11}}><Cpu size={11}/>Re-scan</button>
             </div>
-            <table className="lb-table">
-              <thead><tr><th style={{width:28}}></th><th>Model</th><th>Size</th><th>Min RAM</th><th>Quant</th><th>Run With</th><th>Status</th></tr></thead>
-              <tbody>{hwModels.map(m=>(
-                <tr key={m.id}>
-                  <td style={{textAlign:"center"}}><span className={`hw-dot hw-dot-${m.compatibility==="local"?"local":m.compatibility==="tight"?"tight":"cloud"}`}/></td>
-                  <td className="lb-model">{m.name}</td>
-                  <td>{m.params}</td>
-                  <td style={{fontFamily:"var(--mono)"}}>{m.minRamGb>0?`${m.minRamGb}GB`:"—"}</td>
-                  <td style={{fontFamily:"var(--mono)",fontSize:11}}>{m.quantization}</td>
-                  <td style={{fontSize:11}}>{m.ollamaTag&&<span className="hw-ptag">ollama</span>}{m.openrouterId&&<span className="hw-ptag hw-ptag-cloud">cloud</span>}</td>
-                  <td><span className={`hw-badge hw-badge-${m.compatibility}`}>{m.compatibility==="local"?"Run Locally":m.compatibility==="tight"?"Tight Fit":"Cloud Only"}</span></td>
-                </tr>
-              ))}</tbody>
-            </table>
+            <div className="hw-workload">
+              {(["light","normal","heavy"] as WorkloadProfile[]).map(p=>(
+                <button key={p} className={`hw-workload-btn ${hwProfile===p?"hw-workload-active":""}`} onClick={()=>changeProfile(p)}>
+                  <span className="hw-workload-label">{WORKLOAD_LABELS[p].label}</span>
+                  <span className="hw-workload-desc">{WORKLOAD_LABELS[p].desc}</span>
+                </button>
+              ))}
+            </div>
           </div>
 
+          {/* ── Model Cards (simple view) ── */}
+          {hwModels.length > 0 && (
+            <div className="grid-wrap" style={{marginTop:12}}>
+              <div className="grid-header">
+                <span className="grid-title">Models for Your Machine</span>
+                <div style={{display:"flex",gap:8,alignItems:"center"}}>
+                  <div style={{display:"flex",gap:12,fontSize:10,fontFamily:"var(--mono)",color:"var(--text-4)"}}>
+                    <span><span className="hw-dot hw-dot-local"/> Local</span>
+                    <span><span className="hw-dot hw-dot-tight"/> Tight</span>
+                    <span><span className="hw-dot hw-dot-cloud"/> Cloud</span>
+                  </div>
+                </div>
+              </div>
+
+              <div className="hw-cards">
+                {hwModels.map(m => (
+                  <div key={m.id} className={`hw-card hw-card-${m.compatibility}`}>
+                    <div className="hw-card-top">
+                      <span className={`hw-dot hw-dot-${m.compatibility==="local"?"local":m.compatibility==="tight"?"tight":"cloud"}`}/>
+                      <span className="hw-card-name">{m.name}</span>
+                      <span className="hw-card-size">{m.params}</span>
+                    </div>
+                    <div className="hw-card-reason">{m.reason}</div>
+                    <div className="hw-card-hermes">
+                      <span className={`hw-hermes-badge hw-hermes-${m.hermesCompat.rating}`}>
+                        {HERMES_RATING_LABELS[m.hermesCompat.rating].emoji} Hermes: {HERMES_RATING_LABELS[m.hermesCompat.rating].label}
+                      </span>
+                      <span className="hw-card-hermes-why">{m.hermesCompat.summary}</span>
+                    </div>
+                    <div className="hw-card-tags">
+                      {m.ollamaTag && <span className="hw-ptag">ollama</span>}
+                      {m.openrouterId && <span className="hw-ptag hw-ptag-cloud">cloud</span>}
+                      {m.hermesCompat.formatSupport === "native" && <span className="hw-ptag hw-ptag-hermes">native format</span>}
+                      {m.hermesCompat.multiTurnChain && <span className="hw-ptag hw-ptag-feat">multi-turn</span>}
+                      {m.hermesCompat.hermesFeatures && <span className="hw-ptag hw-ptag-feat">skills &amp; cron</span>}
+                    </div>
+                    {m.compatibility === "local" && m.ollamaTag && (
+                      <code className="hw-card-cmd">ollama pull {m.ollamaTag}</code>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* ── Technical Details Toggle ── */}
           <div className="grid-wrap" style={{marginTop:12}}>
-            <div className="grid-header"><span className="grid-title">Quick Start</span></div>
-            <div className="hw-quickstart">
-              {hwModels.filter(m=>m.compatibility==="local"&&m.ollamaTag).length>0?(
-                <div className="hw-qs-block">
-                  <strong>Recommended local model for your machine:</strong>
-                  <code className="hw-qs-code">{`ollama pull ${hwModels.find(m=>m.compatibility==="local"&&m.ollamaTag)?.ollamaTag}`}</code>
-                  <span className="hw-qs-hint">Then add <code>ollama:{hwModels.find(m=>m.compatibility==="local"&&m.ollamaTag)?.ollamaTag}</code> in Configure → Models</span>
+            <div className="grid-header" style={{cursor:"pointer"}} onClick={()=>setHwShowTech(!hwShowTech)}>
+              <span className="grid-title">{hwShowTech ? "Hide" : "Show"} Technical Details</span>
+              <span style={{fontSize:11,color:"var(--text-4)"}}>{hwShowTech ? "▲" : "▼"}</span>
+            </div>
+            {hwShowTech && hwInfo && (
+              <>
+                <div className="hw-specs">
+                  {hwInfo.modelName && <div className="hw-spec-item"><span className="hw-spec-label">Machine</span><span className="hw-spec-value">{hwInfo.modelName}</span></div>}
+                  <div className="hw-spec-item"><span className="hw-spec-label">Chip</span><span className="hw-spec-value">{hwInfo.chip || hwInfo.gpu || "Unknown"}</span></div>
+                  <div className="hw-spec-item"><span className="hw-spec-label">Total RAM</span><span className="hw-spec-value">{hwInfo.estimatedRam} GB{hwInfo.unifiedMemory ? " (unified)" : ""}</span></div>
+                  <div className="hw-spec-item"><span className="hw-spec-label">CPU Cores</span><span className="hw-spec-value">{hwInfo.cpuCores ?? "Unknown"}</span></div>
+                  <div className="hw-spec-item"><span className="hw-spec-label">GPU</span><span className="hw-spec-value">{hwInfo.gpu ?? "Not detected"}</span></div>
+                  {hwInfo.gpuVram && <div className="hw-spec-item"><span className="hw-spec-label">VRAM</span><span className="hw-spec-value">{hwInfo.gpuVram}</span></div>}
+                  {hwInfo.osVersion && <div className="hw-spec-item"><span className="hw-spec-label">OS</span><span className="hw-spec-value">{hwInfo.platform} {hwInfo.osVersion}</span></div>}
+                  <div className="hw-spec-item"><span className="hw-spec-label">Scan</span><span className="hw-spec-value" style={{color: hwInfo.scanSource === "server" ? "var(--green)" : "var(--amber)"}}>{hwInfo.scanSource === "server" ? "System scan (accurate)" : "Browser estimate (limited)"}</span></div>
                 </div>
-              ):(
-                <div className="hw-qs-block">
-                  <strong>Your hardware is best suited for cloud models.</strong>
-                  <span className="hw-qs-hint">Add your OpenRouter API key in Configure → API Keys, then use <code>openrouter:openai/gpt-4.1</code></span>
+                <table className="lb-table" style={{marginTop:8}}>
+                  <thead><tr><th style={{width:28}}></th><th>Model</th><th>Size</th><th>Min RAM</th><th>Quant</th><th>Hermes</th><th>Format</th><th>Status</th></tr></thead>
+                  <tbody>{hwModels.map(m=>(
+                    <tr key={m.id}>
+                      <td style={{textAlign:"center"}}><span className={`hw-dot hw-dot-${m.compatibility==="local"?"local":m.compatibility==="tight"?"tight":"cloud"}`}/></td>
+                      <td className="lb-model">{m.name}</td>
+                      <td>{m.params}</td>
+                      <td style={{fontFamily:"var(--mono)"}}>{m.minRamGb>0?`${m.minRamGb}GB`:"—"}</td>
+                      <td style={{fontFamily:"var(--mono)",fontSize:11}}>{m.quantization}</td>
+                      <td><span className={`hw-hermes-badge hw-hermes-${m.hermesCompat.rating}`} style={{fontSize:9}}>{HERMES_RATING_LABELS[m.hermesCompat.rating].emoji} {HERMES_RATING_LABELS[m.hermesCompat.rating].label}</span></td>
+                      <td style={{fontSize:10,color:"var(--text-3)"}}>{m.hermesCompat.formatSupport}</td>
+                      <td><span className={`hw-badge hw-badge-${m.compatibility}`}>{m.compatibility==="local"?"Local":m.compatibility==="tight"?"Tight":"Cloud"}</span></td>
+                    </tr>
+                  ))}</tbody>
+                </table>
+              </>
+            )}
+          </div>
+
+          {/* ── Hermes Agent Setup Guide ── */}
+          <div className="grid-wrap" style={{marginTop:12}}>
+            <div className="grid-header"><span className="grid-title">Hermes Agent Setup Guide</span><a href="https://hermes-agent.nousresearch.com/docs/getting-started/quickstart" target="_blank" rel="noopener" className="btn" style={{padding:"3px 10px",fontSize:10,textDecoration:"none"}}>Full Docs</a></div>
+
+            <div className="hw-guide">
+              <div className="hw-guide-section">
+                <h3>Install Hermes Agent</h3>
+                <code className="hw-qs-code">curl -fsSL https://raw.githubusercontent.com/NousResearch/hermes-agent/main/scripts/install.sh | bash</code>
+                <span className="hw-qs-hint">Then reload your shell: <code>source ~/.zshrc</code> or <code>source ~/.bashrc</code></span>
+              </div>
+
+              <div className="hw-guide-section">
+                <h3>Add a Model Provider</h3>
+                <p className="hw-guide-desc">Run <code>hermes model</code> to pick interactively, or configure directly:</p>
+                <div className="hw-guide-grid">
+
+                  <div className="hw-guide-card">
+                    <strong>Ollama (Local)</strong>
+                    <code className="hw-qs-code">{`ollama pull hermes3:8b\nollama serve`}</code>
+                    <span className="hw-guide-yaml">config.yaml:</span>
+                    <code className="hw-qs-code">{`model:\n  default: hermes3:8b\n  provider: custom\n  base_url: http://localhost:11434/v1\n  context_length: 32768`}</code>
+                    <span className="hw-guide-warn">Ollama defaults to 4K context. Set it explicitly or run:<br/><code>OLLAMA_CONTEXT_LENGTH=32768 ollama serve</code></span>
+                  </div>
+
+                  <div className="hw-guide-card">
+                    <strong>vLLM (GPU Server)</strong>
+                    <code className="hw-qs-code">{`vllm serve NousResearch/Hermes-3-Llama-3.1-8B \\\n  --port 8000 \\\n  --enable-auto-tool-choice \\\n  --tool-call-parser hermes \\\n  --max-model-len 32768`}</code>
+                    <span className="hw-guide-warn">Both <code>--enable-auto-tool-choice</code> and <code>--tool-call-parser hermes</code> are required for tool calling to work.</span>
+                  </div>
+
+                  <div className="hw-guide-card">
+                    <strong>llama.cpp (CPU/Metal)</strong>
+                    <code className="hw-qs-code">{`./llama-server \\\n  --jinja -fa \\\n  -c 32768 -ngl 99 \\\n  -m Hermes-3-8B-Q4_K_M.gguf \\\n  --port 8080 --host 0.0.0.0`}</code>
+                    <span className="hw-guide-warn">The <code>--jinja</code> flag is required. Without it, tool calls are silently ignored.</span>
+                  </div>
+
+                  <div className="hw-guide-card">
+                    <strong>OpenRouter (Cloud)</strong>
+                    <code className="hw-qs-code">{`# In ~/.hermes/.env:\nOPENROUTER_API_KEY=sk-or-...\n\n# Then:\nhermes chat --provider openrouter \\\n  --model nousresearch/hermes-3-llama-3.1-70b`}</code>
+                    <span className="hw-guide-hint">Works with 200+ models. Append <code>:nitro</code> for faster routing.</span>
+                  </div>
+
                 </div>
-              )}
+              </div>
+
+              <div className="hw-guide-section">
+                <h3>Common Issues & Fixes</h3>
+                <div className="hw-guide-issues">
+                  <div className="hw-issue">
+                    <strong>Tool calls appear as plain text</strong>
+                    <span>Server isn&apos;t parsing tool calls. Fix: add <code>--jinja</code> (llama.cpp), <code>--enable-auto-tool-choice --tool-call-parser hermes</code> (vLLM), or <code>--tool-call-parser qwen</code> (SGLang). Ollama and LM Studio 0.3.6+ work out of the box.</span>
+                  </div>
+                  <div className="hw-issue">
+                    <strong>Model forgets context mid-conversation</strong>
+                    <span>Context window too small. Agent system prompt + tools use 4-8K tokens. Set at least <code>context_length: 32768</code> in config.yaml. Ollama users: set <code>OLLAMA_CONTEXT_LENGTH=32768</code>.</span>
+                  </div>
+                  <div className="hw-issue">
+                    <strong>Responses get cut off / truncated</strong>
+                    <span>SGLang defaults to 128 max output tokens — add <code>--default-max-tokens 4096</code>. Or enable context compression in Hermes config.</span>
+                  </div>
+                  <div className="hw-issue">
+                    <strong>Connection refused (WSL2 on Windows)</strong>
+                    <span>WSL2 uses a virtual network. Either enable mirrored networking in <code>.wslconfig</code>, or use your host IP instead of localhost. Servers must bind to <code>0.0.0.0</code>, not <code>127.0.0.1</code>.</span>
+                  </div>
+                </div>
+              </div>
             </div>
           </div>
         </>
-      )}
-
-      {/* ══ HERMES SETUP GUIDE (inside hardware view) ══ */}
-      {view === "hardware" && (
-        <div className="grid-wrap" style={{marginTop:12}}>
-          <div className="grid-header"><span className="grid-title">Hermes Agent Setup Guide</span><a href="https://hermes-agent.nousresearch.com/docs/getting-started/quickstart" target="_blank" rel="noopener" className="btn" style={{padding:"3px 10px",fontSize:10,textDecoration:"none"}}>Full Docs</a></div>
-
-          <div className="hw-guide">
-            <div className="hw-guide-section">
-              <h3>Install Hermes Agent</h3>
-              <code className="hw-qs-code">curl -fsSL https://raw.githubusercontent.com/NousResearch/hermes-agent/main/scripts/install.sh | bash</code>
-              <span className="hw-qs-hint">Then reload your shell: <code>source ~/.zshrc</code> or <code>source ~/.bashrc</code></span>
-            </div>
-
-            <div className="hw-guide-section">
-              <h3>Add a Model Provider</h3>
-              <p className="hw-guide-desc">Run <code>hermes model</code> to pick interactively, or configure directly:</p>
-              <div className="hw-guide-grid">
-
-                <div className="hw-guide-card">
-                  <strong>Ollama (Local)</strong>
-                  <code className="hw-qs-code">{`ollama pull hermes3:8b\nollama serve`}</code>
-                  <span className="hw-guide-yaml">config.yaml:</span>
-                  <code className="hw-qs-code">{`model:\n  default: hermes3:8b\n  provider: custom\n  base_url: http://localhost:11434/v1\n  context_length: 32768`}</code>
-                  <span className="hw-guide-warn">Ollama defaults to 4K context. Set it explicitly or run:<br/><code>OLLAMA_CONTEXT_LENGTH=32768 ollama serve</code></span>
-                </div>
-
-                <div className="hw-guide-card">
-                  <strong>vLLM (GPU Server)</strong>
-                  <code className="hw-qs-code">{`vllm serve NousResearch/Hermes-3-Llama-3.1-8B \\\n  --port 8000 \\\n  --enable-auto-tool-choice \\\n  --tool-call-parser hermes \\\n  --max-model-len 32768`}</code>
-                  <span className="hw-guide-warn">Both <code>--enable-auto-tool-choice</code> and <code>--tool-call-parser hermes</code> are required for tool calling to work.</span>
-                </div>
-
-                <div className="hw-guide-card">
-                  <strong>llama.cpp (CPU/Metal)</strong>
-                  <code className="hw-qs-code">{`./llama-server \\\n  --jinja -fa \\\n  -c 32768 -ngl 99 \\\n  -m Hermes-3-8B-Q4_K_M.gguf \\\n  --port 8080 --host 0.0.0.0`}</code>
-                  <span className="hw-guide-warn">The <code>--jinja</code> flag is required. Without it, tool calls are silently ignored.</span>
-                </div>
-
-                <div className="hw-guide-card">
-                  <strong>OpenRouter (Cloud)</strong>
-                  <code className="hw-qs-code">{`# In ~/.hermes/.env:\nOPENROUTER_API_KEY=sk-or-...\n\n# Then:\nhermes chat --provider openrouter \\\n  --model nousresearch/hermes-3-llama-3.1-70b`}</code>
-                  <span className="hw-guide-hint">Works with 200+ models. Append <code>:nitro</code> for faster routing.</span>
-                </div>
-
-              </div>
-            </div>
-
-            <div className="hw-guide-section">
-              <h3>Common Issues & Fixes</h3>
-              <div className="hw-guide-issues">
-                <div className="hw-issue">
-                  <strong>Tool calls appear as plain text</strong>
-                  <span>Server isn't parsing tool calls. Fix: add <code>--jinja</code> (llama.cpp), <code>--enable-auto-tool-choice --tool-call-parser hermes</code> (vLLM), or <code>--tool-call-parser qwen</code> (SGLang). Ollama and LM Studio 0.3.6+ work out of the box.</span>
-                </div>
-                <div className="hw-issue">
-                  <strong>Model forgets context mid-conversation</strong>
-                  <span>Context window too small. Agent system prompt + tools use 4-8K tokens. Set at least <code>context_length: 32768</code> in config.yaml. Ollama users: set <code>OLLAMA_CONTEXT_LENGTH=32768</code>.</span>
-                </div>
-                <div className="hw-issue">
-                  <strong>Responses get cut off / truncated</strong>
-                  <span>SGLang defaults to 128 max output tokens — add <code>--default-max-tokens 4096</code>. Or enable context compression in Hermes config.</span>
-                </div>
-                <div className="hw-issue">
-                  <strong>Connection refused (WSL2 on Windows)</strong>
-                  <span>WSL2 uses a virtual network. Either enable mirrored networking in <code>.wslconfig</code>, or use your host IP instead of localhost. Servers must bind to <code>0.0.0.0</code>, not <code>127.0.0.1</code>.</span>
-                </div>
-                <div className="hw-issue">
-                  <strong>Which model should I use?</strong>
-                  <span>For tool calling: Hermes 3 8B (local, 6GB+ RAM), Hermes 3 70B (cloud or 48GB+), Qwen 3 32B (strong reasoning). For general: GPT-4.1 or Claude Sonnet 4 via OpenRouter.</span>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
       )}
 
       <SessionDialog open={sessionOpen} onClose={()=>setSessionOpen(false)} models={allModels} selected={selectedModelIds} setSelected={setSelectedModelIds} onStart={startSession}/>
