@@ -1,0 +1,648 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Hermes Agent Benchmark</title>
+  <meta name="description" content="Visual benchmark for testing LLM tool-calling capabilities with Hermes Agent Engine compatibility scoring and hardware detection.">
+  <style>
+    :root {
+      --bg: #09090b;
+      --surface: #0f0f12;
+      --surface-2: #151519;
+      --border: rgba(255,255,255,0.06);
+      --text: #e4e4e7;
+      --text-2: #a1a1aa;
+      --text-3: #71717a;
+      --accent: #3b82f6;
+      --accent-dim: rgba(59,130,246,0.12);
+      --green: #22c55e;
+      --green-dim: rgba(34,197,94,0.10);
+      --amber: #f59e0b;
+      --amber-dim: rgba(245,158,11,0.10);
+      --mono: 'IBM Plex Mono', 'SF Mono', 'Consolas', monospace;
+      --sans: 'Inter', -apple-system, sans-serif;
+    }
+
+    *, *::before, *::after { box-sizing: border-box; margin: 0; }
+
+    html { background: var(--bg); scroll-behavior: smooth; }
+
+    body {
+      color: var(--text);
+      font-family: var(--sans);
+      font-size: 16px;
+      line-height: 1.6;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    a { color: var(--accent); text-decoration: none; }
+    a:hover { text-decoration: underline; }
+
+    /* ── Nav ── */
+    .nav {
+      position: sticky;
+      top: 0;
+      z-index: 100;
+      background: rgba(9,9,11,0.85);
+      backdrop-filter: blur(12px);
+      border-bottom: 1px solid var(--border);
+      padding: 12px 0;
+    }
+    .nav-inner {
+      max-width: 1100px;
+      margin: 0 auto;
+      padding: 0 24px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+    .nav-brand {
+      font-family: var(--mono);
+      font-size: 13px;
+      font-weight: 600;
+      letter-spacing: 0.08em;
+      color: var(--text);
+    }
+    .nav-links { display: flex; gap: 24px; }
+    .nav-links a {
+      font-size: 13px;
+      color: var(--text-2);
+      transition: color 0.15s;
+    }
+    .nav-links a:hover { color: var(--text); text-decoration: none; }
+
+    /* ── Hero ── */
+    .hero {
+      max-width: 1100px;
+      margin: 0 auto;
+      padding: 80px 24px 60px;
+      text-align: center;
+    }
+    .hero-badge {
+      display: inline-block;
+      font-family: var(--mono);
+      font-size: 11px;
+      font-weight: 600;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: var(--green);
+      background: var(--green-dim);
+      padding: 4px 12px;
+      border-radius: 4px;
+      margin-bottom: 20px;
+    }
+    .hero h1 {
+      font-size: clamp(32px, 5vw, 52px);
+      font-weight: 700;
+      letter-spacing: -0.03em;
+      line-height: 1.15;
+      color: var(--text);
+      margin-bottom: 16px;
+    }
+    .hero h1 span { color: var(--accent); }
+    .hero p {
+      font-size: 18px;
+      color: var(--text-2);
+      max-width: 640px;
+      margin: 0 auto 32px;
+      line-height: 1.6;
+    }
+    .hero-actions { display: flex; gap: 12px; justify-content: center; flex-wrap: wrap; }
+    .btn-primary, .btn-secondary {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 12px 24px;
+      border-radius: 8px;
+      font-size: 14px;
+      font-weight: 600;
+      transition: all 0.15s;
+      border: none;
+      cursor: pointer;
+    }
+    .btn-primary {
+      background: var(--accent);
+      color: #fff;
+    }
+    .btn-primary:hover { background: #2563eb; text-decoration: none; }
+    .btn-secondary {
+      background: transparent;
+      color: var(--text-2);
+      border: 1px solid var(--border);
+    }
+    .btn-secondary:hover { border-color: var(--accent); color: var(--text); text-decoration: none; }
+
+    /* ── GIF Showcase ── */
+    .showcase {
+      max-width: 1100px;
+      margin: 0 auto;
+      padding: 0 24px 80px;
+    }
+    .showcase img {
+      width: 100%;
+      border-radius: 12px;
+      border: 1px solid var(--border);
+      box-shadow: 0 24px 48px rgba(0,0,0,0.4);
+    }
+
+    /* ── Sections ── */
+    .section {
+      max-width: 1100px;
+      margin: 0 auto;
+      padding: 80px 24px;
+    }
+    .section-label {
+      font-family: var(--mono);
+      font-size: 11px;
+      font-weight: 600;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      color: var(--accent);
+      margin-bottom: 8px;
+    }
+    .section h2 {
+      font-size: 32px;
+      font-weight: 700;
+      letter-spacing: -0.02em;
+      margin-bottom: 12px;
+    }
+    .section > p {
+      font-size: 16px;
+      color: var(--text-2);
+      max-width: 600px;
+      margin-bottom: 40px;
+    }
+
+    /* ── Feature Grid ── */
+    .features {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+      gap: 16px;
+    }
+    .feature-card {
+      padding: 24px;
+      border-radius: 10px;
+      border: 1px solid var(--border);
+      background: var(--surface);
+      transition: border-color 0.15s;
+    }
+    .feature-card:hover { border-color: rgba(255,255,255,0.12); }
+    .feature-icon {
+      font-size: 24px;
+      margin-bottom: 12px;
+    }
+    .feature-card h3 {
+      font-size: 16px;
+      font-weight: 600;
+      margin-bottom: 6px;
+    }
+    .feature-card p {
+      font-size: 14px;
+      color: var(--text-3);
+      line-height: 1.5;
+    }
+
+    /* ── Demo Section ── */
+    .demo-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 24px;
+    }
+    @media (max-width: 768px) { .demo-grid { grid-template-columns: 1fr; } }
+    .demo-item {
+      border-radius: 10px;
+      border: 1px solid var(--border);
+      overflow: hidden;
+      background: var(--surface);
+    }
+    .demo-item img {
+      width: 100%;
+      display: block;
+    }
+    .demo-item-caption {
+      padding: 14px 18px;
+    }
+    .demo-item-caption h3 {
+      font-size: 14px;
+      font-weight: 600;
+      margin-bottom: 4px;
+    }
+    .demo-item-caption p {
+      font-size: 12px;
+      color: var(--text-3);
+    }
+
+    /* ── Hermes Compat ── */
+    .compat-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 14px;
+    }
+    .compat-table th {
+      text-align: left;
+      padding: 10px 14px;
+      font-family: var(--mono);
+      font-size: 11px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      color: var(--text-3);
+      border-bottom: 1px solid var(--border);
+    }
+    .compat-table td {
+      padding: 10px 14px;
+      border-bottom: 1px solid var(--border);
+      color: var(--text-2);
+    }
+    .compat-table tr:last-child td { border-bottom: none; }
+    .badge {
+      font-family: var(--mono);
+      font-size: 10px;
+      font-weight: 600;
+      padding: 2px 8px;
+      border-radius: 3px;
+      text-transform: uppercase;
+    }
+    .badge-green { background: var(--green-dim); color: var(--green); }
+    .badge-blue { background: var(--accent-dim); color: var(--accent); }
+    .badge-amber { background: var(--amber-dim); color: var(--amber); }
+
+    /* ── Quickstart ── */
+    .steps {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+      gap: 16px;
+    }
+    .step {
+      padding: 24px;
+      border-radius: 10px;
+      border: 1px solid var(--border);
+      background: var(--surface);
+    }
+    .step-num {
+      font-family: var(--mono);
+      font-size: 11px;
+      font-weight: 600;
+      color: var(--accent);
+      margin-bottom: 8px;
+    }
+    .step h3 {
+      font-size: 15px;
+      font-weight: 600;
+      margin-bottom: 8px;
+    }
+    .step p {
+      font-size: 13px;
+      color: var(--text-3);
+      margin-bottom: 10px;
+    }
+    .step code {
+      display: block;
+      font-family: var(--mono);
+      font-size: 12px;
+      padding: 10px 12px;
+      border-radius: 6px;
+      background: var(--bg);
+      border: 1px solid var(--border);
+      color: var(--green);
+      white-space: pre-wrap;
+      word-break: break-all;
+    }
+
+    /* ── Suites ── */
+    .suites { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 16px; }
+    @media (max-width: 768px) { .suites { grid-template-columns: 1fr; } }
+    .suite-card {
+      padding: 24px;
+      border-radius: 10px;
+      border: 1px solid var(--border);
+      background: var(--surface);
+    }
+    .suite-card h3 {
+      font-size: 16px;
+      font-weight: 600;
+      margin-bottom: 4px;
+    }
+    .suite-card .suite-count {
+      font-family: var(--mono);
+      font-size: 11px;
+      color: var(--accent);
+      margin-bottom: 10px;
+    }
+    .suite-card ul {
+      list-style: none;
+      padding: 0;
+    }
+    .suite-card li {
+      font-size: 13px;
+      color: var(--text-3);
+      padding: 3px 0;
+      border-bottom: 1px solid var(--border);
+    }
+    .suite-card li:last-child { border-bottom: none; }
+
+    /* ── Footer ── */
+    .footer {
+      border-top: 1px solid var(--border);
+      padding: 32px 24px;
+      text-align: center;
+      font-size: 13px;
+      color: var(--text-3);
+    }
+    .footer a { color: var(--text-2); }
+
+    /* ── Dividers ── */
+    .divider {
+      max-width: 1100px;
+      margin: 0 auto;
+      border: none;
+      border-top: 1px solid var(--border);
+    }
+  </style>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+</head>
+<body>
+
+  <!-- Nav -->
+  <nav class="nav">
+    <div class="nav-inner">
+      <span class="nav-brand">HERMES AGENT BENCHMARK</span>
+      <div class="nav-links">
+        <a href="#features">Features</a>
+        <a href="#demo">Demo</a>
+        <a href="#suites">Test Suites</a>
+        <a href="#compatibility">Hermes Compat</a>
+        <a href="#quickstart">Get Started</a>
+        <a href="https://github.com/juliusalba/agentic-toolcall" target="_blank">GitHub</a>
+      </div>
+    </div>
+  </nav>
+
+  <!-- Hero -->
+  <section class="hero">
+    <div class="hero-badge">Open Source</div>
+    <h1>Find the best AI model<br>for <span>Hermes Agent</span></h1>
+    <p>
+      Test 10+ LLMs across 45 scenarios. See which models handle tool calling,
+      multi-step workflows, and memory retrieval — then check if your hardware can run them locally.
+    </p>
+    <div class="hero-actions">
+      <a href="#quickstart" class="btn-primary">Get Started</a>
+      <a href="https://github.com/juliusalba/agentic-toolcall" target="_blank" class="btn-secondary">View on GitHub</a>
+    </div>
+  </section>
+
+  <!-- Hero GIF -->
+  <div class="showcase">
+    <img src="images/demo-benchmark.gif" alt="Benchmark demo showing model test grid switching between General, Business, and Memory suites">
+  </div>
+
+  <hr class="divider">
+
+  <!-- Features -->
+  <section class="section" id="features">
+    <div class="section-label">Why This Exists</div>
+    <h2>Not another generic benchmark</h2>
+    <p>
+      Most benchmarks test general intelligence. This one tests what matters for AI agents:
+      can the model use tools correctly, chain actions, and work inside Hermes Agent Engine?
+    </p>
+    <div class="features">
+      <div class="feature-card">
+        <div class="feature-icon">&#9881;</div>
+        <h3>45 Real Scenarios</h3>
+        <p>Weather lookups, CRM pipelines, memory retrieval, error recovery, cron scheduling. Not toy examples — real agent tasks across 3 suites.</p>
+      </div>
+      <div class="feature-card">
+        <div class="feature-icon">&#9733;</div>
+        <h3>Hermes Compatibility Scoring</h3>
+        <p>Each model rated on 5 factors: native format support, system prompt adherence, multi-turn chains, Hermes features, and community verification.</p>
+      </div>
+      <div class="feature-card">
+        <div class="feature-icon">&#9000;</div>
+        <h3>"Can I Run This?" Hardware Check</h3>
+        <p>Auto-detects your CPU, RAM, GPU. Tells you in plain English which models run locally, accounting for your daily workload.</p>
+      </div>
+      <div class="feature-card">
+        <div class="feature-icon">&#9879;</div>
+        <h3>Side-by-Side Comparison</h3>
+        <p>10 models, 15 tests, one grid. Color-coded pass/partial/fail with live scoring, latency, context window, and cost estimates.</p>
+      </div>
+      <div class="feature-card">
+        <div class="feature-icon">&#9729;</div>
+        <h3>Cloud + Local Providers</h3>
+        <p>OpenRouter, Ollama, vLLM, llama.cpp, MLX, LM Studio. One API key tests everything — or run fully local.</p>
+      </div>
+      <div class="feature-card">
+        <div class="feature-icon">&#8942;</div>
+        <h3>Detailed Trace Logs</h3>
+        <p>Click any cell to see every turn: what the model sent, which tools it called, what arguments it used, and where it went wrong.</p>
+      </div>
+    </div>
+  </section>
+
+  <hr class="divider">
+
+  <!-- Demo Screenshots -->
+  <section class="section" id="demo">
+    <div class="section-label">See It In Action</div>
+    <h2>Every view, explained</h2>
+    <p>
+      The dashboard has three views: the test grid, the leaderboard, and the hardware checker.
+    </p>
+
+    <!-- Hardware GIF -->
+    <div style="margin-bottom: 32px;">
+      <img src="images/demo-hardware.gif" alt="Hardware view demo showing workload switching" style="width:100%;border-radius:12px;border:1px solid var(--border);">
+      <p style="font-size:13px;color:var(--text-3);margin-top:8px;text-align:center;">
+        Hardware view: auto-detects your machine, adjusts for your workload, shows Hermes compatibility per model
+      </p>
+    </div>
+
+    <div class="demo-grid">
+      <div class="demo-item">
+        <img src="images/01-grid-view.png" alt="Results matrix with 10 models">
+        <div class="demo-item-caption">
+          <h3>Results Matrix</h3>
+          <p>10 models tested across 15 scenarios with color-coded pass/partial/fail and live score percentages.</p>
+        </div>
+      </div>
+      <div class="demo-item">
+        <img src="images/02-leaderboard.png" alt="Leaderboard view">
+        <div class="demo-item-caption">
+          <h3>Leaderboard</h3>
+          <p>Ranked by score with average latency, context window, cost per run, and average turns per scenario.</p>
+        </div>
+      </div>
+      <div class="demo-item">
+        <img src="images/03-hardware-hero.png" alt="Hardware hero verdict">
+        <div class="demo-item-caption">
+          <h3>"Can I Run This?"</h3>
+          <p>Plain English verdict based on your actual hardware specs — no technical knowledge required.</p>
+        </div>
+      </div>
+      <div class="demo-item">
+        <img src="images/06-tech-details.png" alt="Technical details table">
+        <div class="demo-item-caption">
+          <h3>Technical Details</h3>
+          <p>Power users can toggle full specs: RAM requirements, quantization, Hermes format support, and compatibility.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <hr class="divider">
+
+  <!-- Test Suites -->
+  <section class="section" id="suites">
+    <div class="section-label">What We Test</div>
+    <h2>3 suites, 45 scenarios</h2>
+    <p>Each suite targets a different agent capability. Models are scored 0-2 per scenario across 5 categories.</p>
+    <div class="suites">
+      <div class="suite-card">
+        <h3>General (ToolCall-15)</h3>
+        <div class="suite-count">15 scenarios</div>
+        <ul>
+          <li>A. Quick Lookups</li>
+          <li>B. Parameter Precision</li>
+          <li>C. Multi-Tool Chains</li>
+          <li>D. Judgment &amp; Refusal</li>
+          <li>E. Error Recovery</li>
+        </ul>
+      </div>
+      <div class="suite-card">
+        <h3>Business / Enterprise</h3>
+        <div class="suite-count">15 scenarios</div>
+        <ul>
+          <li>A. REST APIs &amp; MCP</li>
+          <li>B. CRM &amp; Lead Gen</li>
+          <li>C. Orchestration</li>
+          <li>D. Skills &amp; Cron</li>
+          <li>E. Research &amp; Analysis</li>
+        </ul>
+      </div>
+      <div class="suite-card">
+        <h3>Memory &amp; Retrieval</h3>
+        <div class="suite-count">15 scenarios</div>
+        <ul>
+          <li>A. Recall &amp; Retrieval</li>
+          <li>B. Memory Storage</li>
+          <li>C. Query &amp; Synthesis</li>
+          <li>D. Hallucination Resistance</li>
+          <li>E. Complex Memory Tasks</li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <hr class="divider">
+
+  <!-- Hermes Compatibility -->
+  <section class="section" id="compatibility">
+    <div class="section-label">Hermes Agent Engine</div>
+    <h2>Not all models work the same in Hermes</h2>
+    <p>
+      Generic benchmarks test tool calling in isolation. We test how well each model works
+      <strong>specifically inside Hermes Agent Engine</strong> — the format, the features, the real workflow.
+    </p>
+    <div style="overflow-x:auto;">
+      <table class="compat-table">
+        <thead>
+          <tr>
+            <th>Factor</th>
+            <th>What It Measures</th>
+            <th>Why It Matters</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><strong>Format Support</strong></td>
+            <td>Native Hermes ChatML vs OpenAI JSON adapter</td>
+            <td>Native format = no translation layer, fewer parsing errors</td>
+          </tr>
+          <tr>
+            <td><strong>System Prompt</strong></td>
+            <td>Follows Hermes system prompt conventions</td>
+            <td>Hermes Agent uses specific prompts — models must respect them</td>
+          </tr>
+          <tr>
+            <td><strong>Multi-Turn Chains</strong></td>
+            <td>Sequential tool calls across conversation turns</td>
+            <td>Real agent tasks require 3-8 turns of tool use</td>
+          </tr>
+          <tr>
+            <td><strong>Hermes Features</strong></td>
+            <td>Skill creation, cron scheduling, MCP, sub-agents</td>
+            <td>These are Hermes-specific — other frameworks don't have them</td>
+          </tr>
+          <tr>
+            <td><strong>Community Tested</strong></td>
+            <td>Verified by real users in Hermes Agent</td>
+            <td>Lab results vs production reality</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+    <div style="margin-top:24px;display:flex;gap:12px;flex-wrap:wrap;">
+      <span class="badge badge-green">Excellent = Purpose-built (Hermes 3 family)</span>
+      <span class="badge badge-blue">Good = Reliable via adapter (GPT-4.1, Claude, Qwen 32B)</span>
+      <span class="badge badge-amber">Basic = Simple calls only (small models)</span>
+    </div>
+  </section>
+
+  <hr class="divider">
+
+  <!-- Quickstart -->
+  <section class="section" id="quickstart">
+    <div class="section-label">Get Started</div>
+    <h2>Running in 2 minutes</h2>
+    <p>Clone, install, run. One command to start testing.</p>
+    <div class="steps">
+      <div class="step">
+        <div class="step-num">01</div>
+        <h3>Clone &amp; Install</h3>
+        <p>Requires Node.js 20+</p>
+        <code>git clone https://github.com/juliusalba/agentic-toolcall.git
+cd agentic-toolcall
+npm install
+cp .env.example .env</code>
+      </div>
+      <div class="step">
+        <div class="step-num">02</div>
+        <h3>Configure a Provider</h3>
+        <p>Easiest: one OpenRouter API key tests all cloud models</p>
+        <code># In .env:
+OPENROUTER_API_KEY=sk-or-...
+LLM_MODELS=openrouter:nousresearch/hermes-3-llama-3.1-8b</code>
+      </div>
+      <div class="step">
+        <div class="step-num">03</div>
+        <h3>Run the Benchmark</h3>
+        <p>Open localhost:3000, click "New Session", pick models, go</p>
+        <code>npm run dev</code>
+      </div>
+      <div class="step">
+        <div class="step-num">04</div>
+        <h3>Or Run Locally with Ollama</h3>
+        <p>No API key needed — runs on your machine</p>
+        <code>ollama pull hermes3:8b
+# In .env:
+LLM_MODELS=ollama:hermes3:8b</code>
+      </div>
+    </div>
+  </section>
+
+  <!-- Footer -->
+  <footer class="footer">
+    <p>
+      Built on <a href="https://github.com/stevibe/toolcall-15" target="_blank">ToolCall-15</a> by
+      <a href="https://x.com/stevibe" target="_blank">stevibe</a> &middot;
+      <a href="https://github.com/juliusalba/agentic-toolcall" target="_blank">GitHub</a> &middot;
+      MIT License
+    </p>
+  </footer>
+
+</body>
+</html>
