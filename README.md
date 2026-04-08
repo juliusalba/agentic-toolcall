@@ -4,6 +4,39 @@ A visual benchmark for testing and scoring LLM models on tool-calling capabiliti
 
 Built on top of [ToolCall-15](https://github.com/stevibe/toolcall-15) — enhanced with Hermes-native tool format support, latency tracking, cost estimation, and context window awareness.
 
+## Screenshots
+
+### Results Matrix
+Test 10 models across 15 scenarios — color-coded pass/partial/fail with live scoring.
+
+![Results Matrix — General Suite](docs/images/01-grid-view.png)
+
+### Benchmark Suites
+Three test suites covering different capabilities: General tool calling, Business/Enterprise workflows, and Memory & Retrieval.
+
+| Business / Enterprise | Memory & Retrieval |
+|---|---|
+| ![Business Suite](docs/images/04-business-suite.png) | ![Memory Suite](docs/images/05-memory-suite.png) |
+
+### Leaderboard
+Ranked model comparison with latency, context window, and cost metrics.
+
+![Leaderboard](docs/images/02-leaderboard.png)
+
+### "Can I Run This?" Hardware Check
+Auto-detects your machine specs and tells you in plain English which models you can run locally — with Hermes Agent compatibility ratings for each model.
+
+![Hardware Hero Verdict](docs/images/03-hardware-hero.png)
+
+Adjust the workload selector to account for what else runs on your machine:
+
+![Heavy Workload](docs/images/07-heavy-workload.png)
+
+### Technical Details (Power Users)
+Toggle to reveal full specs, RAM requirements, quantization info, and Hermes format compatibility.
+
+![Technical Details](docs/images/06-tech-details.png)
+
 ## What It Measures
 
 The benchmark runs 15 fixed scenarios across 5 categories and scores each model on multiple dimensions:
@@ -149,6 +182,29 @@ The Tools Format selector lets you test whether a model works better with:
 
 This reveals which serving configuration produces the best results for each model.
 
+### 6. Hermes Agent Compatibility
+
+Each model gets a Hermes Agent compatibility rating based on 5 factors:
+
+| Factor | What It Measures |
+|---|---|
+| **Format Support** | Native Hermes ChatML (`<tool_call>` XML) vs OpenAI JSON adapter |
+| **System Prompt** | Follows Hermes system prompt conventions |
+| **Multi-Turn Chains** | Handles sequential tool-call turn structure |
+| **Hermes Features** | Skill creation, cron scheduling, MCP, sub-agent delegation |
+| **Community Tested** | Verified in real Hermes Agent usage |
+
+Ratings: **Excellent** (Hermes 3 family — native format, all features), **Good** (works reliably via adapter), **Basic** (simple calls only), **Untested**.
+
+### 7. Hardware Compatibility
+
+The "My Hardware" tab auto-detects your system and answers: **Can I run this locally?**
+
+- Scans CPU, RAM, GPU via system commands (macOS/Linux/Windows)
+- Accounts for your workload (Light / Normal / Heavy) to estimate available RAM
+- Shows which models fit comfortably, which are tight, and which need the cloud
+- Recommends the best model for your specific machine
+
 ## Repository Structure
 
 - [app/](./app) — Next.js app router entry points and styles.
@@ -158,6 +214,9 @@ This reveals which serving configuration produces the best results for each mode
 - [lib/orchestrator.ts](./lib/orchestrator.ts) — Runs scenarios, captures traces and timing.
 - [lib/llm-client.ts](./lib/llm-client.ts) — OpenAI-compatible client with Hermes/LFM format adapters.
 - [lib/models.ts](./lib/models.ts) — Provider config, model metadata (context window, cost).
+- [lib/hardware.ts](./lib/hardware.ts) — Hardware detection, model compatibility engine, Hermes Agent compatibility database.
+- [app/api/hardware/route.ts](./app/api/hardware/route.ts) — Server-side system hardware scanning.
+- [docs/images/](./docs/images/) — Screenshots for documentation.
 
 ## Limitations
 
