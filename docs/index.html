@@ -437,7 +437,6 @@
         <a href="#demo">Demo</a>
         <a href="#suites">Test Suites</a>
         <a href="#compatibility">Hermes Compat</a>
-        <a href="#quickstart">Get Started</a>
         <a href="https://github.com/juliusalba/agentic-toolcall" target="_blank">GitHub</a>
         <button class="theme-toggle" onclick="toggleTheme()" title="Toggle light/dark theme" id="theme-btn">&#9790;</button>
       </div>
@@ -453,8 +452,8 @@
       multi-step workflows, and memory retrieval — then check if your hardware can run them locally.
     </p>
     <div class="hero-actions">
-      <a href="#quickstart" class="btn-primary">Get Started</a>
-      <a href="https://github.com/juliusalba/agentic-toolcall" target="_blank" class="btn-secondary">View on GitHub</a>
+      <a href="https://github.com/juliusalba/agentic-toolcall" target="_blank" class="btn-primary">View on GitHub</a>
+      <a href="#features" class="btn-secondary">Learn More</a>
     </div>
   </section>
 
@@ -656,48 +655,6 @@
     </div>
   </section>
 
-  <hr class="divider">
-
-  <!-- Quickstart -->
-  <section class="section" id="quickstart">
-    <div class="section-label">Get Started</div>
-    <h2>Running in 2 minutes</h2>
-    <p>Clone, install, run. One command to start testing.</p>
-    <div class="steps">
-      <div class="step">
-        <div class="step-num">01</div>
-        <h3>Clone &amp; Install</h3>
-        <p>Requires Node.js 20+</p>
-        <code>git clone https://github.com/juliusalba/agentic-toolcall.git
-cd agentic-toolcall
-npm install
-cp .env.example .env</code>
-      </div>
-      <div class="step">
-        <div class="step-num">02</div>
-        <h3>Configure a Provider</h3>
-        <p>Easiest: one OpenRouter API key tests all cloud models</p>
-        <code># In .env:
-OPENROUTER_API_KEY=sk-or-...
-LLM_MODELS=openrouter:nousresearch/hermes-3-llama-3.1-8b</code>
-      </div>
-      <div class="step">
-        <div class="step-num">03</div>
-        <h3>Run the Benchmark</h3>
-        <p>Open localhost:3000, click "New Session", pick models, go</p>
-        <code>npm run dev</code>
-      </div>
-      <div class="step">
-        <div class="step-num">04</div>
-        <h3>Or Run Locally with Ollama</h3>
-        <p>No API key needed — runs on your machine</p>
-        <code>ollama pull hermes3:8b
-# In .env:
-LLM_MODELS=ollama:hermes3:8b</code>
-      </div>
-    </div>
-  </section>
-
   <!-- Footer -->
   <footer class="footer">
     <p>
@@ -743,36 +700,36 @@ LLM_MODELS=ollama:hermes3:8b</code>
     resize();
 
     // Nodes — floating particles that connect when near each other
-    const NODES = 80;
-    const CONNECT_DIST = 160;
+    const NODES = 120;
+    const CONNECT_DIST = 200;
     const nodes = [];
 
     for (let i = 0; i < NODES; i++) {
       nodes.push({
         x: Math.random() * W,
-        y: Math.random() * H * 3, // spread across full scroll height
-        vx: (Math.random() - 0.5) * 0.4,
-        vy: (Math.random() - 0.5) * 0.25,
-        r: Math.random() * 2 + 0.5,
-        type: Math.random() < 0.15 ? 'hex' : Math.random() < 0.3 ? 'ring' : 'dot',
+        y: Math.random() * H * 3,
+        vx: (Math.random() - 0.5) * 0.6,
+        vy: (Math.random() - 0.5) * 0.4,
+        r: Math.random() * 2.5 + 1,
+        type: Math.random() < 0.2 ? 'hex' : Math.random() < 0.35 ? 'ring' : 'dot',
         phase: Math.random() * Math.PI * 2,
         speed: 0.3 + Math.random() * 0.7,
       });
     }
 
-    // Floating geometric shapes
+    // Floating geometric shapes — much more visible
     const shapes = [];
-    for (let i = 0; i < 12; i++) {
+    for (let i = 0; i < 24; i++) {
       shapes.push({
         x: Math.random() * W,
         y: Math.random() * H * 3,
-        size: 20 + Math.random() * 60,
+        size: 40 + Math.random() * 120,
         rotation: Math.random() * Math.PI * 2,
-        rotSpeed: (Math.random() - 0.5) * 0.005,
-        vy: -0.1 - Math.random() * 0.15,
-        vx: (Math.random() - 0.5) * 0.1,
+        rotSpeed: (Math.random() - 0.5) * 0.008,
+        vy: -0.15 - Math.random() * 0.25,
+        vx: (Math.random() - 0.5) * 0.2,
         type: ['triangle', 'diamond', 'hexagon', 'circle'][Math.floor(Math.random() * 4)],
-        alpha: 0.02 + Math.random() * 0.04,
+        alpha: 0.04 + Math.random() * 0.08,
       });
     }
 
@@ -798,9 +755,9 @@ LLM_MODELS=ollama:hermes3:8b</code>
       ctx.translate(x, y);
       ctx.rotate(s.rotation + t * s.rotSpeed * 60);
       const isLt = document.documentElement.classList.contains('light');
-      ctx.globalAlpha = s.alpha * (isLt ? 0.6 : 1);
+      ctx.globalAlpha = s.alpha * (isLt ? 1.2 : 1.8);
       ctx.strokeStyle = isLt ? '#2563eb' : '#3b82f6';
-      ctx.lineWidth = 1;
+      ctx.lineWidth = 1.5;
 
       switch (s.type) {
         case 'triangle':
@@ -858,7 +815,7 @@ LLM_MODELS=ollama:hermes3:8b</code>
         if (sy < -50 || sy > H + 50) continue;
 
         const pulse = Math.sin(time * n.speed + n.phase) * 0.5 + 0.5;
-        const alpha = 0.15 + pulse * 0.15;
+        const alpha = 0.3 + pulse * 0.35;
 
         const isLight = document.documentElement.classList.contains('light');
         const accentRGB = isLight ? '37,99,235' : '59,130,246';
@@ -871,8 +828,8 @@ LLM_MODELS=ollama:hermes3:8b</code>
           const dx = n.x - m.x, dy = sy - my;
           const d = Math.sqrt(dx * dx + dy * dy);
           if (d < CONNECT_DIST && d > 0) {
-            ctx.strokeStyle = `rgba(${accentRGB},${(1 - d / CONNECT_DIST) * (isLight ? 0.1 : 0.06)})`;
-            ctx.lineWidth = 0.5;
+            ctx.strokeStyle = `rgba(${accentRGB},${(1 - d / CONNECT_DIST) * (isLight ? 0.18 : 0.14)})`;
+            ctx.lineWidth = 0.7;
             ctx.beginPath();
             ctx.moveTo(n.x, sy);
             ctx.lineTo(m.x, my);
@@ -882,23 +839,23 @@ LLM_MODELS=ollama:hermes3:8b</code>
 
         // Draw node
         if (n.type === 'hex') {
-          ctx.globalAlpha = alpha * (isLight ? 0.4 : 0.6);
+          ctx.globalAlpha = alpha * (isLight ? 0.6 : 0.8);
           ctx.strokeStyle = `rgba(${greenRGB},1)`;
-          ctx.lineWidth = 1;
-          drawHexagon(n.x, sy, n.r * 4);
+          ctx.lineWidth = 1.5;
+          drawHexagon(n.x, sy, n.r * 5);
           ctx.stroke();
         } else if (n.type === 'ring') {
-          ctx.globalAlpha = alpha * (isLight ? 0.35 : 0.5);
+          ctx.globalAlpha = alpha * (isLight ? 0.5 : 0.7);
           ctx.strokeStyle = `rgba(${accentRGB},1)`;
-          ctx.lineWidth = 0.8;
+          ctx.lineWidth = 1.2;
           ctx.beginPath();
-          ctx.arc(n.x, sy, n.r * 3, 0, Math.PI * 2);
+          ctx.arc(n.x, sy, n.r * 4, 0, Math.PI * 2);
           ctx.stroke();
         } else {
-          ctx.globalAlpha = alpha * (isLight ? 0.6 : 1);
+          ctx.globalAlpha = alpha * (isLight ? 0.8 : 1);
           ctx.fillStyle = `rgba(${accentRGB},1)`;
           ctx.beginPath();
-          ctx.arc(n.x, sy, n.r, 0, Math.PI * 2);
+          ctx.arc(n.x, sy, n.r * 1.5, 0, Math.PI * 2);
           ctx.fill();
         }
       }
