@@ -8,7 +8,7 @@
   <style>
     :root {
       --bg: #09090b;
-      --surface: #0f0f12;
+      --surface: rgba(15,15,18,0.8);
       --surface-2: #151519;
       --border: rgba(255,255,255,0.06);
       --text: #e4e4e7;
@@ -24,6 +24,25 @@
       --sans: 'Inter', -apple-system, sans-serif;
     }
 
+    /* Light theme */
+    html.light {
+      --bg: #f8f9fa;
+      --surface: rgba(255,255,255,0.85);
+      --surface-2: #ffffff;
+      --border: rgba(0,0,0,0.08);
+      --text: #1a1a2e;
+      --text-2: #4a4a5a;
+      --text-3: #7a7a8a;
+      --accent: #2563eb;
+      --accent-dim: rgba(37,99,235,0.08);
+      --green: #16a34a;
+      --green-dim: rgba(22,163,74,0.08);
+      --amber: #d97706;
+      --amber-dim: rgba(217,119,6,0.08);
+      --node-color: 37,99,235;
+      --node-green: 22,163,74;
+    }
+
     *, *::before, *::after { box-sizing: border-box; margin: 0; }
 
     html { background: var(--bg); scroll-behavior: smooth; }
@@ -31,42 +50,74 @@
     body {
       color: var(--text);
       font-family: var(--sans);
-      font-size: 16px;
-      line-height: 1.6;
+      font-size: 18px;
+      line-height: 1.7;
       -webkit-font-smoothing: antialiased;
+      overflow-x: hidden;
     }
 
     a { color: var(--accent); text-decoration: none; }
     a:hover { text-decoration: underline; }
+
+    /* ── Animated Background ── */
+    #geo-bg {
+      position: fixed;
+      top: 0; left: 0;
+      width: 100%; height: 100%;
+      z-index: 0;
+      pointer-events: none;
+    }
+
+    .content-wrap {
+      position: relative;
+      z-index: 1;
+    }
 
     /* ── Nav ── */
     .nav {
       position: sticky;
       top: 0;
       z-index: 100;
-      background: rgba(9,9,11,0.85);
-      backdrop-filter: blur(12px);
+      background: rgba(9,9,11,0.8);
+      backdrop-filter: blur(16px);
       border-bottom: 1px solid var(--border);
-      padding: 12px 0;
+      padding: 16px 0;
     }
+    html.light .nav { background: rgba(248,249,250,0.85); }
+
+    .theme-toggle {
+      background: none;
+      border: 1px solid var(--border);
+      color: var(--text-2);
+      width: 36px; height: 36px;
+      border-radius: 8px;
+      cursor: pointer;
+      font-size: 18px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: all 0.15s;
+      flex-shrink: 0;
+    }
+    .theme-toggle:hover { border-color: var(--accent); color: var(--text); }
     .nav-inner {
-      max-width: 1100px;
+      max-width: 1200px;
       margin: 0 auto;
-      padding: 0 24px;
+      padding: 0 32px;
       display: flex;
       align-items: center;
       justify-content: space-between;
     }
     .nav-brand {
       font-family: var(--mono);
-      font-size: 13px;
+      font-size: 15px;
       font-weight: 600;
       letter-spacing: 0.08em;
       color: var(--text);
     }
-    .nav-links { display: flex; gap: 24px; }
+    .nav-links { display: flex; gap: 28px; }
     .nav-links a {
-      font-size: 13px;
+      font-size: 15px;
       color: var(--text-2);
       transition: color 0.15s;
     }
@@ -74,48 +125,48 @@
 
     /* ── Hero ── */
     .hero {
-      max-width: 1100px;
+      max-width: 1200px;
       margin: 0 auto;
-      padding: 80px 24px 60px;
+      padding: 100px 32px 70px;
       text-align: center;
     }
     .hero-badge {
       display: inline-block;
       font-family: var(--mono);
-      font-size: 11px;
+      font-size: 13px;
       font-weight: 600;
       letter-spacing: 0.08em;
       text-transform: uppercase;
       color: var(--green);
       background: var(--green-dim);
-      padding: 4px 12px;
-      border-radius: 4px;
-      margin-bottom: 20px;
+      padding: 6px 16px;
+      border-radius: 6px;
+      margin-bottom: 24px;
     }
     .hero h1 {
-      font-size: clamp(32px, 5vw, 52px);
+      font-size: clamp(40px, 6vw, 68px);
       font-weight: 700;
       letter-spacing: -0.03em;
-      line-height: 1.15;
+      line-height: 1.1;
       color: var(--text);
-      margin-bottom: 16px;
+      margin-bottom: 24px;
     }
     .hero h1 span { color: var(--accent); }
     .hero p {
-      font-size: 18px;
+      font-size: 22px;
       color: var(--text-2);
-      max-width: 640px;
-      margin: 0 auto 32px;
+      max-width: 700px;
+      margin: 0 auto 40px;
       line-height: 1.6;
     }
-    .hero-actions { display: flex; gap: 12px; justify-content: center; flex-wrap: wrap; }
+    .hero-actions { display: flex; gap: 16px; justify-content: center; flex-wrap: wrap; }
     .btn-primary, .btn-secondary {
       display: inline-flex;
       align-items: center;
       gap: 8px;
-      padding: 12px 24px;
-      border-radius: 8px;
-      font-size: 14px;
+      padding: 16px 32px;
+      border-radius: 10px;
+      font-size: 17px;
       font-weight: 600;
       transition: all 0.15s;
       border: none;
@@ -135,72 +186,74 @@
 
     /* ── GIF Showcase ── */
     .showcase {
-      max-width: 1100px;
+      max-width: 1200px;
       margin: 0 auto;
-      padding: 0 24px 80px;
+      padding: 0 32px 80px;
     }
     .showcase img {
       width: 100%;
-      border-radius: 12px;
+      border-radius: 16px;
       border: 1px solid var(--border);
-      box-shadow: 0 24px 48px rgba(0,0,0,0.4);
+      box-shadow: 0 32px 64px rgba(0,0,0,0.5), 0 0 0 1px rgba(59,130,246,0.08);
     }
 
     /* ── Sections ── */
     .section {
-      max-width: 1100px;
+      max-width: 1200px;
       margin: 0 auto;
-      padding: 80px 24px;
+      padding: 100px 32px;
     }
     .section-label {
       font-family: var(--mono);
-      font-size: 11px;
+      font-size: 14px;
       font-weight: 600;
       letter-spacing: 0.1em;
       text-transform: uppercase;
       color: var(--accent);
-      margin-bottom: 8px;
-    }
-    .section h2 {
-      font-size: 32px;
-      font-weight: 700;
-      letter-spacing: -0.02em;
       margin-bottom: 12px;
     }
+    .section h2 {
+      font-size: clamp(28px, 4vw, 42px);
+      font-weight: 700;
+      letter-spacing: -0.02em;
+      margin-bottom: 16px;
+    }
     .section > p {
-      font-size: 16px;
+      font-size: 20px;
       color: var(--text-2);
-      max-width: 600px;
-      margin-bottom: 40px;
+      max-width: 680px;
+      margin-bottom: 48px;
+      line-height: 1.6;
     }
 
     /* ── Feature Grid ── */
     .features {
       display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
-      gap: 16px;
+      grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+      gap: 20px;
     }
     .feature-card {
-      padding: 24px;
-      border-radius: 10px;
+      padding: 32px;
+      border-radius: 14px;
       border: 1px solid var(--border);
       background: var(--surface);
+      backdrop-filter: blur(8px);
       transition: border-color 0.15s;
     }
     .feature-card:hover { border-color: rgba(255,255,255,0.12); }
     .feature-icon {
-      font-size: 24px;
-      margin-bottom: 12px;
+      font-size: 32px;
+      margin-bottom: 16px;
     }
     .feature-card h3 {
-      font-size: 16px;
+      font-size: 20px;
       font-weight: 600;
-      margin-bottom: 6px;
+      margin-bottom: 8px;
     }
     .feature-card p {
-      font-size: 14px;
+      font-size: 16px;
       color: var(--text-3);
-      line-height: 1.5;
+      line-height: 1.6;
     }
 
     /* ── Demo Section ── */
@@ -211,39 +264,41 @@
     }
     @media (max-width: 768px) { .demo-grid { grid-template-columns: 1fr; } }
     .demo-item {
-      border-radius: 10px;
+      border-radius: 14px;
       border: 1px solid var(--border);
       overflow: hidden;
       background: var(--surface);
+      backdrop-filter: blur(8px);
     }
     .demo-item img {
       width: 100%;
       display: block;
     }
     .demo-item-caption {
-      padding: 14px 18px;
+      padding: 18px 22px;
     }
     .demo-item-caption h3 {
-      font-size: 14px;
+      font-size: 18px;
       font-weight: 600;
-      margin-bottom: 4px;
+      margin-bottom: 6px;
     }
     .demo-item-caption p {
-      font-size: 12px;
+      font-size: 15px;
       color: var(--text-3);
+      line-height: 1.5;
     }
 
     /* ── Hermes Compat ── */
     .compat-table {
       width: 100%;
       border-collapse: collapse;
-      font-size: 14px;
+      font-size: 16px;
     }
     .compat-table th {
       text-align: left;
-      padding: 10px 14px;
+      padding: 14px 18px;
       font-family: var(--mono);
-      font-size: 11px;
+      font-size: 13px;
       font-weight: 600;
       text-transform: uppercase;
       letter-spacing: 0.06em;
@@ -251,17 +306,17 @@
       border-bottom: 1px solid var(--border);
     }
     .compat-table td {
-      padding: 10px 14px;
+      padding: 14px 18px;
       border-bottom: 1px solid var(--border);
       color: var(--text-2);
     }
     .compat-table tr:last-child td { border-bottom: none; }
     .badge {
       font-family: var(--mono);
-      font-size: 10px;
+      font-size: 12px;
       font-weight: 600;
-      padding: 2px 8px;
-      border-radius: 3px;
+      padding: 4px 12px;
+      border-radius: 4px;
       text-transform: uppercase;
     }
     .badge-green { background: var(--green-dim); color: var(--green); }
@@ -271,73 +326,76 @@
     /* ── Quickstart ── */
     .steps {
       display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
-      gap: 16px;
+      grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+      gap: 20px;
     }
     .step {
-      padding: 24px;
-      border-radius: 10px;
+      padding: 32px;
+      border-radius: 14px;
       border: 1px solid var(--border);
       background: var(--surface);
+      backdrop-filter: blur(8px);
     }
     .step-num {
       font-family: var(--mono);
-      font-size: 11px;
+      font-size: 14px;
       font-weight: 600;
       color: var(--accent);
-      margin-bottom: 8px;
+      margin-bottom: 10px;
     }
     .step h3 {
-      font-size: 15px;
+      font-size: 19px;
       font-weight: 600;
       margin-bottom: 8px;
     }
     .step p {
-      font-size: 13px;
+      font-size: 15px;
       color: var(--text-3);
-      margin-bottom: 10px;
+      margin-bottom: 14px;
     }
     .step code {
       display: block;
       font-family: var(--mono);
-      font-size: 12px;
-      padding: 10px 12px;
-      border-radius: 6px;
+      font-size: 14px;
+      padding: 14px 16px;
+      border-radius: 8px;
       background: var(--bg);
       border: 1px solid var(--border);
       color: var(--green);
       white-space: pre-wrap;
       word-break: break-all;
+      line-height: 1.6;
     }
 
     /* ── Suites ── */
-    .suites { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 16px; }
+    .suites { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 20px; }
     @media (max-width: 768px) { .suites { grid-template-columns: 1fr; } }
     .suite-card {
-      padding: 24px;
-      border-radius: 10px;
+      padding: 32px;
+      border-radius: 14px;
       border: 1px solid var(--border);
       background: var(--surface);
+      backdrop-filter: blur(8px);
     }
     .suite-card h3 {
-      font-size: 16px;
+      font-size: 20px;
       font-weight: 600;
-      margin-bottom: 4px;
+      margin-bottom: 6px;
     }
     .suite-card .suite-count {
       font-family: var(--mono);
-      font-size: 11px;
+      font-size: 13px;
       color: var(--accent);
-      margin-bottom: 10px;
+      margin-bottom: 14px;
     }
     .suite-card ul {
       list-style: none;
       padding: 0;
     }
     .suite-card li {
-      font-size: 13px;
+      font-size: 16px;
       color: var(--text-3);
-      padding: 3px 0;
+      padding: 6px 0;
       border-bottom: 1px solid var(--border);
     }
     .suite-card li:last-child { border-bottom: none; }
@@ -345,16 +403,16 @@
     /* ── Footer ── */
     .footer {
       border-top: 1px solid var(--border);
-      padding: 32px 24px;
+      padding: 40px 32px;
       text-align: center;
-      font-size: 13px;
+      font-size: 15px;
       color: var(--text-3);
     }
     .footer a { color: var(--text-2); }
 
     /* ── Dividers ── */
     .divider {
-      max-width: 1100px;
+      max-width: 1200px;
       margin: 0 auto;
       border: none;
       border-top: 1px solid var(--border);
@@ -364,6 +422,11 @@
   <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
 </head>
 <body>
+
+  <!-- Animated geometric background -->
+  <canvas id="geo-bg"></canvas>
+
+  <div class="content-wrap">
 
   <!-- Nav -->
   <nav class="nav">
@@ -376,6 +439,7 @@
         <a href="#compatibility">Hermes Compat</a>
         <a href="#quickstart">Get Started</a>
         <a href="https://github.com/juliusalba/agentic-toolcall" target="_blank">GitHub</a>
+        <button class="theme-toggle" onclick="toggleTheme()" title="Toggle light/dark theme" id="theme-btn">&#9790;</button>
       </div>
     </div>
   </nav>
@@ -454,9 +518,9 @@
     </p>
 
     <!-- Hardware GIF -->
-    <div style="margin-bottom: 32px;">
-      <img src="images/demo-hardware.gif" alt="Hardware view demo showing workload switching" style="width:100%;border-radius:12px;border:1px solid var(--border);">
-      <p style="font-size:13px;color:var(--text-3);margin-top:8px;text-align:center;">
+    <div style="margin-bottom: 40px;">
+      <img src="images/demo-hardware.gif" alt="Hardware view demo showing workload switching" style="width:100%;border-radius:16px;border:1px solid var(--border);box-shadow: 0 32px 64px rgba(0,0,0,0.4);">
+      <p style="font-size:16px;color:var(--text-3);margin-top:12px;text-align:center;">
         Hardware view: auto-detects your machine, adjusts for your workload, shows Hermes compatibility per model
       </p>
     </div>
@@ -585,7 +649,7 @@
         </tbody>
       </table>
     </div>
-    <div style="margin-top:24px;display:flex;gap:12px;flex-wrap:wrap;">
+    <div style="margin-top:28px;display:flex;gap:14px;flex-wrap:wrap;">
       <span class="badge badge-green">Excellent = Purpose-built (Hermes 3 family)</span>
       <span class="badge badge-blue">Good = Reliable via adapter (GPT-4.1, Claude, Qwen 32B)</span>
       <span class="badge badge-amber">Basic = Simple calls only (small models)</span>
@@ -643,6 +707,209 @@ LLM_MODELS=ollama:hermes3:8b</code>
       MIT License
     </p>
   </footer>
+
+  </div><!-- /content-wrap -->
+
+  <script>
+  // Theme toggle
+  function toggleTheme() {
+    const html = document.documentElement;
+    const isLight = html.classList.toggle('light');
+    localStorage.setItem('theme', isLight ? 'light' : 'dark');
+    document.getElementById('theme-btn').innerHTML = isLight ? '&#9728;' : '&#9790;';
+  }
+  // Restore saved theme
+  (function() {
+    const saved = localStorage.getItem('theme');
+    if (saved === 'light') {
+      document.documentElement.classList.add('light');
+      document.addEventListener('DOMContentLoaded', () => {
+        document.getElementById('theme-btn').innerHTML = '&#9728;';
+      });
+    }
+  })();
+
+  // Animated geometric background — nodes, connections, floating shapes
+  (function() {
+    const canvas = document.getElementById('geo-bg');
+    const ctx = canvas.getContext('2d');
+    let W, H;
+
+    function resize() {
+      W = canvas.width = window.innerWidth;
+      H = canvas.height = window.innerHeight;
+    }
+    window.addEventListener('resize', resize);
+    resize();
+
+    // Nodes — floating particles that connect when near each other
+    const NODES = 80;
+    const CONNECT_DIST = 160;
+    const nodes = [];
+
+    for (let i = 0; i < NODES; i++) {
+      nodes.push({
+        x: Math.random() * W,
+        y: Math.random() * H * 3, // spread across full scroll height
+        vx: (Math.random() - 0.5) * 0.4,
+        vy: (Math.random() - 0.5) * 0.25,
+        r: Math.random() * 2 + 0.5,
+        type: Math.random() < 0.15 ? 'hex' : Math.random() < 0.3 ? 'ring' : 'dot',
+        phase: Math.random() * Math.PI * 2,
+        speed: 0.3 + Math.random() * 0.7,
+      });
+    }
+
+    // Floating geometric shapes
+    const shapes = [];
+    for (let i = 0; i < 12; i++) {
+      shapes.push({
+        x: Math.random() * W,
+        y: Math.random() * H * 3,
+        size: 20 + Math.random() * 60,
+        rotation: Math.random() * Math.PI * 2,
+        rotSpeed: (Math.random() - 0.5) * 0.005,
+        vy: -0.1 - Math.random() * 0.15,
+        vx: (Math.random() - 0.5) * 0.1,
+        type: ['triangle', 'diamond', 'hexagon', 'circle'][Math.floor(Math.random() * 4)],
+        alpha: 0.02 + Math.random() * 0.04,
+      });
+    }
+
+    let scrollY = 0;
+    window.addEventListener('scroll', () => { scrollY = window.scrollY; });
+
+    function drawHexagon(cx, cy, r) {
+      ctx.beginPath();
+      for (let i = 0; i < 6; i++) {
+        const a = (Math.PI / 3) * i - Math.PI / 6;
+        const px = cx + r * Math.cos(a);
+        const py = cy + r * Math.sin(a);
+        i === 0 ? ctx.moveTo(px, py) : ctx.lineTo(px, py);
+      }
+      ctx.closePath();
+    }
+
+    function drawShape(s, t) {
+      const x = s.x, y = s.y - scrollY * 0.3;
+      if (y < -100 || y > H + 100) return;
+
+      ctx.save();
+      ctx.translate(x, y);
+      ctx.rotate(s.rotation + t * s.rotSpeed * 60);
+      const isLt = document.documentElement.classList.contains('light');
+      ctx.globalAlpha = s.alpha * (isLt ? 0.6 : 1);
+      ctx.strokeStyle = isLt ? '#2563eb' : '#3b82f6';
+      ctx.lineWidth = 1;
+
+      switch (s.type) {
+        case 'triangle':
+          ctx.beginPath();
+          ctx.moveTo(0, -s.size / 2);
+          ctx.lineTo(-s.size / 2, s.size / 2);
+          ctx.lineTo(s.size / 2, s.size / 2);
+          ctx.closePath();
+          ctx.stroke();
+          break;
+        case 'diamond':
+          ctx.beginPath();
+          ctx.moveTo(0, -s.size / 2);
+          ctx.lineTo(-s.size / 3, 0);
+          ctx.lineTo(0, s.size / 2);
+          ctx.lineTo(s.size / 3, 0);
+          ctx.closePath();
+          ctx.stroke();
+          break;
+        case 'hexagon':
+          drawHexagon(0, 0, s.size / 2);
+          ctx.stroke();
+          break;
+        case 'circle':
+          ctx.beginPath();
+          ctx.arc(0, 0, s.size / 2, 0, Math.PI * 2);
+          ctx.stroke();
+          break;
+      }
+      ctx.restore();
+    }
+
+    let time = 0;
+    function frame() {
+      time += 0.016;
+      ctx.clearRect(0, 0, W, H);
+
+      // Draw floating shapes
+      for (const s of shapes) {
+        s.x += s.vx;
+        s.y += s.vy;
+        s.rotation += s.rotSpeed;
+        if (s.y - scrollY * 0.3 < -200) { s.y = H + scrollY * 0.3 + 200; s.x = Math.random() * W; }
+        drawShape(s, time);
+      }
+
+      // Update and draw nodes
+      for (const n of nodes) {
+        n.x += n.vx;
+        n.y += n.vy;
+        if (n.x < 0 || n.x > W) n.vx *= -1;
+        if (n.y < -200 || n.y > H * 3 + 200) n.vy *= -1;
+
+        const sy = n.y - scrollY * 0.5;
+        if (sy < -50 || sy > H + 50) continue;
+
+        const pulse = Math.sin(time * n.speed + n.phase) * 0.5 + 0.5;
+        const alpha = 0.15 + pulse * 0.15;
+
+        const isLight = document.documentElement.classList.contains('light');
+        const accentRGB = isLight ? '37,99,235' : '59,130,246';
+        const greenRGB = isLight ? '22,163,74' : '34,197,94';
+
+        // Draw connections
+        for (const m of nodes) {
+          const my = m.y - scrollY * 0.5;
+          if (my < -50 || my > H + 50) continue;
+          const dx = n.x - m.x, dy = sy - my;
+          const d = Math.sqrt(dx * dx + dy * dy);
+          if (d < CONNECT_DIST && d > 0) {
+            ctx.strokeStyle = `rgba(${accentRGB},${(1 - d / CONNECT_DIST) * (isLight ? 0.1 : 0.06)})`;
+            ctx.lineWidth = 0.5;
+            ctx.beginPath();
+            ctx.moveTo(n.x, sy);
+            ctx.lineTo(m.x, my);
+            ctx.stroke();
+          }
+        }
+
+        // Draw node
+        if (n.type === 'hex') {
+          ctx.globalAlpha = alpha * (isLight ? 0.4 : 0.6);
+          ctx.strokeStyle = `rgba(${greenRGB},1)`;
+          ctx.lineWidth = 1;
+          drawHexagon(n.x, sy, n.r * 4);
+          ctx.stroke();
+        } else if (n.type === 'ring') {
+          ctx.globalAlpha = alpha * (isLight ? 0.35 : 0.5);
+          ctx.strokeStyle = `rgba(${accentRGB},1)`;
+          ctx.lineWidth = 0.8;
+          ctx.beginPath();
+          ctx.arc(n.x, sy, n.r * 3, 0, Math.PI * 2);
+          ctx.stroke();
+        } else {
+          ctx.globalAlpha = alpha * (isLight ? 0.6 : 1);
+          ctx.fillStyle = `rgba(${accentRGB},1)`;
+          ctx.beginPath();
+          ctx.arc(n.x, sy, n.r, 0, Math.PI * 2);
+          ctx.fill();
+        }
+      }
+
+      ctx.globalAlpha = 1;
+      requestAnimationFrame(frame);
+    }
+
+    frame();
+  })();
+  </script>
 
 </body>
 </html>
